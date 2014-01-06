@@ -33,14 +33,15 @@ OBJCPP = $(patsubst %.cpp,obj/%.o,$(SRCPP))
 all : buildTemplate.exe
 
 obj/%.o : %.cpp
-	@echo "> compiling $*"
+	@echo ">> compiling $*"
+	@mkdir -p obj/
 	@$(CC) -c $< $(UCFLAGS) $(RUCFLAGS) -o $@
 
 buildTemplate.exe : $(OBJCPP) 
-	@echo "> linking..."
+	@echo ">> linking..."
 	@$(CC) $^ $(ACLIBS) $(LIBS) $(GLIBS)  -o $@
 
 clean:
-	@echo "> cleaning objects and executable"
+	@echo ">> cleaning objects and executable"
 	@rm  -f obj/*.o
 	@rm -f buildTemplate.exe

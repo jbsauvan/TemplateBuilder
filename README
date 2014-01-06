@@ -1,1 +1,81 @@
-To be written...
+********************************************
+**           TemplateBuilder              **
+**                                        **
+**       README version 06/01/13          **
+**                                        **
+********************************************
+
+Contact: sauvan[AT]llr.in2p3.fr
+
+This utility is able to build templates from events stored in a TTree. For the moment only 2D templates (TH2F) can be built; in the future the possibility to build 3D templates will be added (and also 1D if needed).
+
+Templates are defined by the user in a JSON file (Java Script Object Notation), which is parsed by the utility and templates are built according to the specifications.
+
+----------------------
+1) Running the program
+----------------------
+The program needs ROOT in order to compile and run. So please make sure that ROOT is correctly setup in your environment.
+Then it has to be compiled with:
+> make
+
+If you want to clean the area, type:
+> make clean
+
+Finally it runs like this:
+> ./buildTemplate.exe run/my-template-definition.json
+
+the run/ directory is intended to store the template definitions. There is an example file already in this directory: run/templateExample.json.
+The syntax of these definition files is detailed in the next section.
+
+------------------
+2) Template syntax
+------------------
+2)-1- General
+-------------
+NB: The JSON syntax is used. More details can be found on the web. Only the specific syntax is detailed here.
+
+The file starts and ends with brackets {} surrounding the parameters. Lines starting with // are comments (C format).
+Several objects/variables are defined, at different levels. Top level ones are:
+- inputDirectory: where your input trees are stored
+- outputFile    : the output file that will contain the templates
+- templates     : a list of template definitions
+
+Then for each template in the list several variables can be defined:
+- name     : the name of the template (don't use the same name for several templates)
+- files    : the list of input tree files in the directory defined by 'inputDirectory'.
+- tree     : the name of the tree in the files
+- variables: x- and y-axis template variables. The names correspond to those in the tree.
+- weight   : if events are weighted. This is the weight to be applied when filling templates. The name correspond to the tree variable.
+- selection: to apply an event selection. The variables used in the formula should be in the tree.
+- assertion: to define an assertion. If it fails the program will stop.
+- binning  : the binning of the template
+- postprocessing: to modify the templates after it is filled. For instance smoothing, mirroring, etc. can be applied.
+- rescaling: to rescale the template by the given number
+!! In the future the "rescaling" and "postprocessing" keywords will be merged and improved to be able to control them more precisely !!
+
+2)-2- Binning definition
+------------------------
+Two types of binning can be define:
+- standard: fixed size bins
+- adaptive: adaptive binning
+The fixed size bins defined with the keyword 'bins', the value is a list [nbinsx, xmin, xmax, nbinsy, ymin, ymax].
+For adaptive binning the 'bins' keyword is used to specify the underlying binning.
+
+2)-3- Postprocessing
+--------------------
+A few postprocessing have been implemented for the moment:
+- smooth_k5b     : smoothing with ROOT k5b kernel
+- smooth_adaptive: smoothing with variable Gaussian kernel
+- mirror         : mirroring
+- mirror_inverse : anti-mirroring
+- floor          : flooring
+!! For the moment no parameter can be given. This will be added soon !!
+
+2)-4- Template sums
+-------------------
+Templates can also be produced from already created templates, by using the keyword 'templatesum'. 
+It will make a linear combination of templates. A list of input templates with a multiplicative factor for each of them should be given:
+[{"name":"templateName", "factor":1.},{...},...]
+The keyword "name" corresponds to the name of an existing template.
+The keyword "factor" corresponds to the factor to be applied to the template. It is a floating point. All the templates in the list will be added with the given factor. 
+

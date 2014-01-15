@@ -1,0 +1,132 @@
+// Configuration options
+{
+	"inputDirectory":"/home/sauvan/DATA/SPINPARITY/CJLSTStatTree/131102_WithFa2KDs/2mu2e/",
+	"outputFile":"templates/DcpVsD0m/signal/templatesAdapSmoothMirror.root",
+	// template definitions
+	"templates":[
+		// template 0+ no mirror
+		{
+			"name":"template0PlusAdapSmooth",
+			"files":[
+				"HZZ4lTree_powheg15jhuGenV3H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3PseHH126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf05ph0H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf05ph180H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf05ph270H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf05ph90H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf01ph0H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf01ph180H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf01ph270H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf01ph90H126_withDisc_new_noProt.root"
+				],
+			"tree":"SelectedTree",
+			"variables":["D_g1_vs_g4_phi0_cal","D_intPdf_phi0"],
+			"weight":"weight1L",
+			"selection":"ZZMass>106 && ZZMass<141 && D_sKD >= 0.5",
+			"assertion":"D_g1_vs_g4_phi0_cal >= 0. && D_g1_vs_g4_phi0_cal <= 1.",
+			"binning":{
+				"type":"adaptive",
+				"bins":[100,0.,1.,100,-0.5,0.5],
+				"entriesperbin":200
+			},
+			"postprocessing":[
+				"smooth_adaptive"
+			]
+		},
+		// template 0+ mirror
+		{
+			"name":"template0PlusAdapSmoothMirror",
+			"templatesum":[
+				{"name":"template0PlusAdapSmooth","factor":1.}
+			],
+			"postprocessing":[
+				"mirror",
+				"floor"
+			]
+		},
+		// template 0- no mirror
+		{
+			"name":"template0MinusAdapSmooth",
+			"files":[
+				"HZZ4lTree_powheg15jhuGenV3PseHH126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf05ph0H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf05ph180H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf05ph270H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf05ph90H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf01ph0H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf01ph180H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf01ph270H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf01ph90H126_withDisc_new_noProt.root"
+				],
+			"tree":"SelectedTree",
+			"variables":["D_g1_vs_g4_phi0_cal","D_intPdf_phi0"],
+			"weight":"weight2L",
+			"selection":"ZZMass>106 && ZZMass<141 && D_sKD >= 0.5",
+			"assertion":"D_g1_vs_g4_phi0_cal >= 0. && D_g1_vs_g4_phi0_cal <= 1.",
+			"binning":{
+				"type":"adaptive",
+				"bins":[100,0.,1.,100,-0.5,0.5],
+				"entriesperbin":200
+			},
+			"postprocessing":[
+				"smooth_adaptive"
+			],
+			"rescaling":0.967025 // 0.247423/0.25586
+		},
+		// template 0- 
+		{
+			"name":"template0MinusAdapSmoothMirror",
+			"templatesum":[
+				{"name":"template0MinusAdapSmooth","factor":1.}
+			],
+			"postprocessing":[
+				"mirror",
+				"floor"
+			]
+		},
+		// template fa3=0.5 
+		{
+			"name":"templateMixAdapSmooth",
+			"files":[
+				"HZZ4lTree_powheg15jhuGenV3-0Mf05ph0H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3PseHH126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf05ph180H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf05ph270H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf05ph90H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf01ph0H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf01ph180H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf01ph270H126_withDisc_new_noProt.root",
+				"HZZ4lTree_powheg15jhuGenV3-0Mf01ph90H126_withDisc_new_noProt.root"
+				],
+			"tree":"SelectedTree",
+			"variables":["D_g1_vs_g4_phi0_cal","D_intPdf_phi0"],
+			"weight":"weight3L",
+			"selection":"ZZMass>106 && ZZMass<141 && D_sKD >= 0.5",
+			"assertion":"D_g1_vs_g4_phi0_cal >= 0. && D_g1_vs_g4_phi0_cal <= 1.",
+			"binning":{
+				"type":"adaptive",
+				"bins":[100,0.,1.,100,-0.5,0.5],
+				"entriesperbin":200
+			},
+			"postprocessing":[
+				"smooth_adaptive"
+			],
+			"rescaling":1.98299 //0.507368/0.25586
+		},
+
+		// template interference (use non-mirrored inputs), anti-mirror done afterwards
+		{
+			"name":"templateIntAdapSmoothMirror",
+			"templatesum":[
+				{"name":"templateMixAdapSmooth","factor":1.},
+				{"name":"template0PlusAdapSmooth","factor":-1.},
+				{"name":"template0MinusAdapSmooth","factor":-1.}
+			],
+			"postprocessing":[
+				"mirror_inverse"
+			]
+		}
+	]
+}

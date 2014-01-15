@@ -56,7 +56,7 @@ TemplateManager::~TemplateManager()
 bool TemplateManager::initialize(const std::string& parameterFile)
 /*****************************************************************/
 {
-    cout<<"[INFO] Initializing...\n";
+    cout<<"[INFO] Initializing\n";
     m_reader.read(parameterFile);
 
     m_inputDirectory = m_reader.inputDirectory();
@@ -111,7 +111,7 @@ void TemplateManager::loop()
         cout<<"[INFO] Filling template '"<<tmpName<<"' from trees\n";
         if(tmp->getWeight()!="")
         {
-            cout<<"[INFO] Weights '"<<tmp->getWeight()<<"' will be used\n";
+            cout<<"[INFO]   Weights '"<<tmp->getWeight()<<"' will be used\n";
         }
         vector<string>::const_iterator fIt = tmp->inputFileBegin();
         vector<string>::const_iterator fItE = tmp->inputFileEnd();
@@ -122,7 +122,7 @@ void TemplateManager::loop()
             const string& fileName = *fIt;
             stringstream fullName;
             fullName << m_inputDirectory<< "/" << fileName;
-            std::cout<<"[INFO] Opening file "<<i<<"/"<<nFiles<<"\n";
+            std::cout<<"[INFO]   Opening file "<<i<<"/"<<nFiles<<"\n";
             TFile* inputFile = TFile::Open(fullName.str().c_str());
             if(!inputFile)
             {
@@ -136,8 +136,13 @@ void TemplateManager::loop()
             Long64_t nEntries = entryList->GetN();
             tree->SetEntryList(entryList);
 
-            TTreeFormula varForm1("var1", tmp->getVariable(0).c_str(), tree);
-            TTreeFormula varForm2("var2", tmp->getVariable(1).c_str(), tree);
+            vector<TTreeFormula*> varForms;
+            for(unsigned int v=0;v<tmp->numberOfDimensions();v++)
+            {
+                stringstream varName;
+                varName << "var" << v;
+                varForms.push_back( new TTreeFormula(varName.str().c_str(), tmp->getVariable(v).c_str(), tree) );
+            }
             TTreeFormula* weightForm = NULL;
             if(tmp->getWeight()!="")
             {
@@ -174,20 +179,27 @@ void TemplateManager::loop()
                     error << "TemplateManager::loop(): assertion '"<<tmp->getAssertion()<<"' failed";
                     throw runtime_error(error.str());
                 }
-                double var1 = varForm1.EvalInstance();
-                double var2 = varForm2.EvalInstance();
+                vector<double> point;
+                for(unsigned int v=0;v<tmp->numberOfDimensions();v++)
+                {
+                    point.push_back( varForms[v]->EvalInstance() );
+                }
                 double weight = 1.;
                 if(weightForm)
                 {
                     weight = weightForm->EvalInstance();
                 }
-                tmp->store(var1, var2, weight*(double)nEntries/sumOfWeights);
+                tmp->store(point, weight*(double)nEntries/sumOfWeights);
 
                 //execute();
             }
             if(weightForm)
             {
                 weightForm->Delete();
+            }
+            for(unsigned int v=0;v<tmp->numberOfDimensions();v++)
+            {
+                varForms[v]->Delete();
             }
             inputFile->Close();
             i++;
@@ -213,6 +225,10 @@ void TemplateManager::save()
         Template* tmp = tmpIt->second;
         tmp->getTemplate()->SetName(tmpName.c_str());
         tmp->getTemplate()->Write();
+
+        // TMP: fill kernel widths
+        //tmp->getWidth(0)->Write();
+        //tmp->getWidth(1)->Write();
     }
 }
 

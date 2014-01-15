@@ -17,7 +17,7 @@ SRCPP = main.cpp\
 	json_reader.cpp\
 	json_value.cpp\
 	json_writer.cpp\
-	Bin2DTree.cpp\
+	BinTree.cpp\
 	GaussKernelSmoother.cpp\
 	Template.cpp\
 	TemplateManager.cpp\

@@ -113,13 +113,18 @@ void TemplateParameters::readTemplate(const Json::Value& tmp)
             error << "TemplateParameters::readTemplate(): No variables defined for template '"<<name<<"'";
             throw runtime_error(error.str());
         }
-        if(variables.size()!=2)
+        if(variables.size()!=2 && variables.size()!=3)
         {
             stringstream error;
-            error << "TemplateParameters::readTemplate(): Number of variables !=2 for template '"<<name<<"'";
+            error << "TemplateParameters::readTemplate(): ('"<<name<<"') Only 2 or 3 dimensions templates are possible\n";
             throw runtime_error(error.str());
         }
-        m_templates.back()->setVariables(variables[(unsigned int)0].asString(),variables[(unsigned int)1].asString());
+        vector<string> vars;
+        for(unsigned int v=0;v<variables.size();v++)
+        {
+            vars.push_back(variables[v].asString());
+        }
+        m_templates.back()->setVariables(vars);
         std::string weight = tmp.get("weight", "").asString(); 
         m_templates.back()->setWeight(weight);
         std::string selection = tmp.get("selection", "").asString(); 
@@ -148,20 +153,20 @@ void TemplateParameters::readTemplate(const Json::Value& tmp)
             error << "TemplateParameters::readTemplate(): No binning defined for template '"<<name<<"'";
             throw runtime_error(error.str());
         }
-        if(bins.size()!=6)
+        if(bins.size()!=3*variables.size())
         {
             stringstream error;
-            error << "TemplateParameters::readTemplate(): Binning should be of the form [nbin1,min1,max1,nbin2,min2,max2] for template '"<<name<<"'";
+            error << "TemplateParameters::readTemplate(): Binning should be of the form [nbin1,min1,max1, ... ] for template '"<<name<<"'";
             throw runtime_error(error.str());
         }
-        m_templates.back()->createTemplate(
-                bins[(unsigned int)0].asUInt(),
-                bins[(unsigned int)1].asDouble(),
-                bins[(unsigned int)2].asDouble(),
-                bins[(unsigned int)3].asUInt(),
-                bins[(unsigned int)4].asDouble(),
-                bins[(unsigned int)5].asDouble()
-                );
+        vector<unsigned int> nbins;
+        vector< pair<double,double> > minmax;
+        for(unsigned int v=0;v<variables.size();v++)
+        {
+            nbins.push_back(bins[v*3].asUInt());
+            minmax.push_back( make_pair(bins[v*3+1].asDouble(),bins[v*3+2].asDouble()) );
+        }
+        m_templates.back()->createTemplate(nbins, minmax);
     }
 
     // postprocessing TODO: add possibility to specify parameters

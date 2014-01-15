@@ -21,24 +21,27 @@
 #ifndef GAUSSKERNELSMOOTHER_H
 #define GAUSSKERNELSMOOTHER_H
 
-#include <TH2F.h>
+#include <TH1.h>
 #include <algorithm>
 
 class GaussKernelSmoother
 {
     public:
         GaussKernelSmoother();
+        GaussKernelSmoother(unsigned int ndim);
         ~GaussKernelSmoother();
 
-        TH2F* smooth(const TH2F* histo);
-        void setWidths(TH2F* widthx, TH2F* widthy);
+        TH1* smooth(const TH1* histo);
+        void setWidths(const std::vector<TH1*>& widths);
 
     private:
-        TH2F* m_widthx;
-        TH2F* m_widthy;
-        double weight(double x0, double y0, double xi, double yi);
-        std::pair<double,double> smoothedValueError(const TH2F* histo, double x0, double y0);
-
+        unsigned int m_ndim;
+        std::vector<TH1*> m_widths;
+        inline double weight(const std::vector<double>& x0, const std::vector<double>& xi);
+        inline double weight(const std::vector<double>& x0, double dx, int axis);
+        inline std::pair<double,double> smoothedValueError(const TH1* histo, const std::vector<double>& x0);
+        inline std::pair<double,double> smoothed2DValueError(const TH1* histo, const std::vector<double>& x0);
+        inline std::pair<double,double> smoothed3DValueError(const TH1* histo, const std::vector<double>& x0);
 
 };
 

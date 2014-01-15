@@ -19,6 +19,9 @@
 
 #include "Template.h"
 
+#include "TH2F.h"
+#include "TH3F.h"
+
 #include <iostream>
 #include <sstream>
 
@@ -26,9 +29,7 @@ using namespace std;
 
 
 /*****************************************************************/
-Template::Template():m_template(NULL),
-    m_widthx(NULL),
-    m_widthy(NULL)
+Template::Template():m_template(NULL)
 /*****************************************************************/
 {
 }
@@ -57,15 +58,13 @@ Template::~Template()
         delete m_template;
         m_template = NULL;
     }
-    if(m_widthx)
+    for(unsigned int axis=0;axis<m_widths.size();axis++)
     {
-        delete m_widthx;
-        m_widthx = NULL;
-    }
-    if(m_widthy)
-    {
-        delete m_widthy;
-        m_widthy = NULL;
+        if(m_widths[axis])
+        {
+            delete m_widths[axis];
+        }
+        m_widths.clear();
     }
 }
 
@@ -73,77 +72,97 @@ Template::~Template()
 const string& Template::getVariable(unsigned int index) const
 /*****************************************************************/
 {
-    assert(index<=1);
+    assert(index<3);
     return m_variables.at(index);
 }
 
 /*****************************************************************/
-void Template::setVariables(const string& var1, const string& var2)
+void Template::setVariables(const vector<string>& vars)
 /*****************************************************************/
 {
     m_variables.clear();
-    m_variables.push_back(var1);
-    m_variables.push_back(var2);
+    for(unsigned int v=0;v<vars.size();v++)
+    {
+        m_variables.push_back(vars[v]);
+    }
 }
 
 
 /*****************************************************************/
-void Template::createTemplate(unsigned int nbin1, double min1, double max1, unsigned int nbin2, double min2, double max2)
+void Template::createTemplate(const vector<unsigned int>& nbins, const vector< pair<double,double> >& minmax)
 /*****************************************************************/
 {
     if(m_template)
         m_template->Delete();
-    if(m_widthx)
-        m_widthx->Delete();
-    if(m_widthy)
-        m_widthy->Delete();
-    m_template = new TH2F(m_name.c_str(),m_name.c_str(),nbin1,min1,max1,nbin2,min2,max2);
+    for(unsigned int axis=0;axis<m_widths.size();axis++)
+    {
+        if(m_widths[axis])
+        {
+            delete m_widths[axis];
+        }
+        m_widths.clear();
+    }
+    m_minmax = minmax;
+    if(nbins.size()==2)
+    {
+        m_template = new TH2F(m_name.c_str(),m_name.c_str(),nbins[0],minmax[0].first,minmax[0].second,nbins[1],minmax[1].first,minmax[1].second);
+    }
+    else if(nbins.size()==3)
+    {
+        m_template = new TH3F(m_name.c_str(),m_name.c_str(),nbins[0],minmax[0].first,minmax[0].second,nbins[1],minmax[1].first,minmax[1].second,nbins[2],minmax[2].first,minmax[2].second);
+    }
     m_template->Sumw2();
-    stringstream nameWidthx;
-    nameWidthx << m_name << "_widthx";
-    m_widthx = new TH2F(nameWidthx.str().c_str(),nameWidthx.str().c_str(),nbin1,min1,max1,nbin2,min2,max2);
-    m_widthx->Sumw2();
-    stringstream nameWidthy;
-    nameWidthy << m_name << "_widthy";
-    m_widthy = new TH2F(nameWidthy.str().c_str(),nameWidthy.str().c_str(),nbin1,min1,max1,nbin2,min2,max2);
-    m_widthy->Sumw2();
+
+    for(unsigned int axis=0;axis<nbins.size();axis++)
+    {
+        stringstream nameWidth;
+        nameWidth << m_name << "_width" << axis;
+        if(nbins.size()==2)
+        {
+            m_widths.push_back(new TH2F(nameWidth.str().c_str(),nameWidth.str().c_str(),nbins[0],minmax[0].first,minmax[0].second,nbins[1],minmax[1].first,minmax[1].second));
+        }
+        else if(nbins.size()==3)
+        {
+            m_widths.push_back(new TH3F(nameWidth.str().c_str(),nameWidth.str().c_str(),nbins[0],minmax[0].first,minmax[0].second,nbins[1],minmax[1].first,minmax[1].second,nbins[2],minmax[2].first,minmax[2].second));
+        }
+        m_widths.back()->Sumw2();
+    }
 }
 
 /*****************************************************************/
-void Template::setTemplate(const TH2F* histo)
+void Template::setTemplate(const TH1* histo)
 /*****************************************************************/
 {
     if(m_template)
         m_template->Delete();
-    m_template = dynamic_cast<TH2F*>(histo->Clone(m_name.c_str()));
+    m_template = dynamic_cast<TH1*>(histo->Clone(m_name.c_str()));
     //m_template->Sumw2();
 }
 
 /*****************************************************************/
-void Template::setWidths(const TH2F* widthx, const TH2F* widthy)
+void Template::setWidths(const vector<TH1*>& widths)
 /*****************************************************************/
 {
-    if(m_widthx)
-        m_widthx->Delete();
-    if(m_widthy)
-        m_widthy->Delete();
-    stringstream nameWidthx;
-    nameWidthx << m_name << "_widthx";
-    m_widthx = dynamic_cast<TH2F*>(widthx->Clone(nameWidthx.str().c_str()));
-    //m_widthx->Sumw2();
-    stringstream nameWidthy;
-    nameWidthy << m_name << "_widthy";
-    m_widthy = dynamic_cast<TH2F*>(widthy->Clone(nameWidthy.str().c_str()));
-    //m_widthy->Sumw2();
+    for(unsigned int axis=0;axis<m_widths.size();axis++)
+    {
+        if(m_widths[axis])
+        {
+            delete m_widths[axis];
+        }
+        m_widths.clear();
+    }
+    for(unsigned int axis=0;axis<widths.size();axis++)
+    {
+        stringstream nameWidth;
+        nameWidth << m_name << "_width" << axis;
+        m_widths.push_back(dynamic_cast<TH1*>(widths[axis]->Clone(nameWidth.str().c_str())));
+    }
 }
 
 /*****************************************************************/
-void Template::store(double v1, double v2, double w)
+void Template::store(const vector<double>& vs, double w)
 /*****************************************************************/
 {
-    vector<double> entry;
-    entry.push_back(v1);
-    entry.push_back(v2);
-    entry.push_back(w);
-    m_entries.push_back(entry);
+    m_entries.push_back(vs);
+    m_weights.push_back(w);
 }

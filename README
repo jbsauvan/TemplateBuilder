@@ -24,7 +24,7 @@ Clean area:
 Run with:
 > ./buildTemplate.exe run/my-template-definition.json
 
-the run/ directory is intended to store the template definitions. There are two example files already in this directory: run/templates2DExample.json and run/templates3DExample.json.
+The run/ directory is intended to store the template definitions. There are two example files already in this directory: run/templates2DExample.json and run/templates3DExample.json.
 The syntax of these definition files is detailed in the next section.
 
 ------------------
@@ -58,8 +58,8 @@ Then for each template in the list several variables can be defined:
 Two types of binning can be define:
 - standard: fixed size bins
 - adaptive: adaptive binning
-The fixed size bins defined with the keyword 'bins', the value is a list [nbinsx, xmin, xmax, nbinsy, ymin, ymax], or [nbinsx, xmin, xmax, nbinsy, ymin, ymax, nbinsz, zmin, zmax] for 3D.
-For adaptive binning the 'bins' keyword is used to specify the underlying binning, and 'entriesperbin' specify the minimum number of events per bin.
+The fixed size bins are defined with the keyword 'bins', the value is a list [nbinsx, xmin, xmax, nbinsy, ymin, ymax], or [nbinsx, xmin, xmax, nbinsy, ymin, ymax, nbinsz, zmin, zmax] for 3D.
+For adaptive binning the 'bins' keyword is used to specify the underlying binning, and 'entriesperbin' specify the minimum number of events per bin (default is 200).
 
 Example:
 "binning":{
@@ -84,7 +84,7 @@ Example:
 	"mirror",
 	"floor"
 ]
-will smooth the template with a variable Gaussian kernel, mirror the second axis (for the moment the axis cannot be specified), and add a floor.
+will smooth the template with a variable Gaussian kernel, mirror the second axis (!! for the moment the axis cannot be specified and the 2nd dimension is automatically used !!), and add a floor.
 
 2)-4- Template sums
 -------------------

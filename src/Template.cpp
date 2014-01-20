@@ -24,10 +24,107 @@
 
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 using namespace std;
 
+/*****************************************************************/
+PostProcessing::PostProcessing(Type type)
+/*****************************************************************/
+{
+    m_type = type;
+}
 
+
+/*****************************************************************/
+PostProcessing::~PostProcessing()
+/*****************************************************************/
+{
+}
+
+
+/*****************************************************************/
+void PostProcessing::addParameter(const string& par, const string& value)
+/*****************************************************************/
+{
+    m_stringParameters[par] = value;
+}
+
+/*****************************************************************/
+void PostProcessing::addParameter(const string& par, double value)
+/*****************************************************************/
+{
+    m_floatParameters[par] = value;
+}
+
+/*****************************************************************/
+void PostProcessing::addParameter(const string& par, int value)
+/*****************************************************************/
+{
+    m_intParameters[par] = value;
+}
+
+/*****************************************************************/
+void PostProcessing::addParameter(const string& par, bool value)
+/*****************************************************************/
+{
+    m_boolParameters[par] = value;
+}
+
+/*****************************************************************/
+void PostProcessing::getParameter(const string& par, string& value)
+/*****************************************************************/
+{
+    if(m_stringParameters.find(par)==m_stringParameters.end())
+    {
+        stringstream error;
+        error <<"PostProcessing::getParamater(): Trying to retrieve unknown string parameter '"<<par<<"'\n";
+        throw runtime_error(error.str());
+    }
+    value = m_stringParameters[par];
+}
+
+/*****************************************************************/
+void PostProcessing::getParameter(const string& par, double& value)
+/*****************************************************************/
+{
+    if(m_floatParameters.find(par)==m_floatParameters.end())
+    {
+        stringstream error;
+        error <<"PostProcessing::getParamater(): Trying to retrieve unknown float parameter '"<<par<<"'\n";
+        throw runtime_error(error.str());
+    }
+    value = m_floatParameters[par];
+}
+
+/*****************************************************************/
+void PostProcessing::getParameter(const string& par, int& value)
+/*****************************************************************/
+{
+    if(m_intParameters.find(par)==m_intParameters.end())
+    {
+        stringstream error;
+        error <<"PostProcessing::getParamater(): Trying to retrieve unknown int parameter '"<<par<<"'\n";
+        throw runtime_error(error.str());
+    }
+    value = m_intParameters[par];
+}
+
+/*****************************************************************/
+void PostProcessing::getParameter(const string& par, bool& value)
+/*****************************************************************/
+{
+    if(m_boolParameters.find(par)==m_boolParameters.end())
+    {
+        stringstream error;
+        error <<"PostProcessing::getParamater(): Trying to retrieve unknown bool parameter '"<<par<<"'\n";
+        throw runtime_error(error.str());
+    }
+    value = m_boolParameters[par];
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////:
 /*****************************************************************/
 Template::Template():m_template(NULL)
 /*****************************************************************/

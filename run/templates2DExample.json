@@ -25,12 +25,11 @@
 			"selection":"ZZMass>106 && ZZMass<141 && D_sKD >= 0.5",
 			"assertion":"D_g1_vs_g4_phi0_cal >= 0. && D_g1_vs_g4_phi0_cal <= 1.",
 			"binning":{
-				"type":"adaptive",
-				"bins":[100,0.,1.,100,-0.5,0.5],
-				"entriesperbin":200
+				"type":"fixed",
+				"bins":[100,0.,1.,100,-0.5,0.5]
 			},
 			"postprocessing":[
-				"smooth_adaptive"
+				{"type":"smooth", "kernel":"adaptive", "entriesperbin":200}
 			]
 		},
 		// template 0+ mirror
@@ -40,8 +39,8 @@
 				{"name":"template0PlusAdapSmooth","factor":1.}
 			],
 			"postprocessing":[
-				"mirror",
-				"floor"
+				{"type":"mirror", "axis":1},
+				{"type":"floor"}
 			]
 		},
 		// template 0- no mirror
@@ -65,14 +64,13 @@
 			"selection":"ZZMass>106 && ZZMass<141 && D_sKD >= 0.5",
 			"assertion":"D_g1_vs_g4_phi0_cal >= 0. && D_g1_vs_g4_phi0_cal <= 1.",
 			"binning":{
-				"type":"adaptive",
-				"bins":[100,0.,1.,100,-0.5,0.5],
-				"entriesperbin":200
+				"type":"fixed",
+				"bins":[100,0.,1.,100,-0.5,0.5]
 			},
 			"postprocessing":[
-				"smooth_adaptive"
-			],
-			"rescaling":0.967025 // 0.247423/0.25586
+				{"type":"smooth", "kernel":"adaptive", "entriesperbin":200},
+				{"type":"rescale","factor":0.967025}// 0.247423/0.25586
+			]
 		},
 		// template 0- 
 		{
@@ -81,8 +79,8 @@
 				{"name":"template0MinusAdapSmooth","factor":1.}
 			],
 			"postprocessing":[
-				"mirror",
-				"floor"
+				{"type":"mirror", "axis":1},
+				{"type":"floor"}
 			]
 		},
 		// template fa3=0.5 
@@ -106,14 +104,13 @@
 			"selection":"ZZMass>106 && ZZMass<141 && D_sKD >= 0.5",
 			"assertion":"D_g1_vs_g4_phi0_cal >= 0. && D_g1_vs_g4_phi0_cal <= 1.",
 			"binning":{
-				"type":"adaptive",
-				"bins":[100,0.,1.,100,-0.5,0.5],
-				"entriesperbin":200
+				"type":"fixed",
+				"bins":[100,0.,1.,100,-0.5,0.5]
 			},
 			"postprocessing":[
-				"smooth_adaptive"
-			],
-			"rescaling":1.98299 //0.507368/0.25586
+				{"type":"smooth", "kernel":"adaptive", "entriesperbin":200},
+				{"type":"rescale","factor":1.98299}//0.507368/0.25586
+			]
 		},
 
 		// template interference (use non-mirrored inputs), anti-mirror done afterwards
@@ -125,7 +122,7 @@
 				{"name":"template0MinusAdapSmooth","factor":-1.}
 			],
 			"postprocessing":[
-				"mirror_inverse"
+				{"type":"mirror", "antisymmetric":true, "axis":1}
 			]
 		}
 	]

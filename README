@@ -1,7 +1,7 @@
 ********************************************
 **           TemplateBuilder              **
 **                                        **
-**       README version 15/01/14          **
+**       README version 20/01/14          **
 **                                        **
 ********************************************
 
@@ -45,18 +45,17 @@ Then for each template in the list several variables can be defined:
 - files    : the list of input tree files in the directory defined by 'inputDirectory'.
 - tree     : the name of the tree in the files
 - variables: template variables, 2 for 2D, 3 for 3D. The names correspond to those in the tree.
-- weight   : if events are weighted. This is the weight to be applied when filling templates. The name correspond to the tree variable.
+- weight   : if events are weighted. This is the weight to be applied when filling templates. The name corresponds to the tree variable.
 - selection: to apply an event selection. The variables used in the formula should be in the tree.
 - assertion: to define an assertion. If it fails the program will stop.
 - binning  : the binning of the template
 - postprocessing: to modify the templates after it is filled. For instance smoothing, mirroring, etc. can be applied.
-- rescaling: to rescale the template by the given number
-!! In the future the "rescaling" and "postprocessing" keywords will be merged and improved to be able to control them more precisely !!
+
 
 2)-2- Binning definition
 ------------------------
 Two types of binning can be define:
-- standard: fixed size bins
+- fixed   : fixed size bins
 - adaptive: adaptive binning
 The fixed size bins are defined with the keyword 'bins', the value is a list [nbinsx, xmin, xmax, nbinsy, ymin, ymax], or [nbinsx, xmin, xmax, nbinsy, ymin, ymax, nbinsz, zmin, zmax] for 3D.
 For adaptive binning the 'bins' keyword is used to specify the underlying binning, and 'entriesperbin' specify the minimum number of events per bin (default is 200).
@@ -71,20 +70,38 @@ Example:
 2)-3- Postprocessing
 --------------------
 A few postprocessing have been implemented for the moment:
-- smooth_k5b     : smoothing with ROOT k5b kernel
-- smooth_adaptive: smoothing with variable Gaussian kernel
-- mirror         : mirroring
-- mirror_inverse : anti-mirroring
-- floor          : flooring
-!! For the moment no parameter can be given. This will be added in the future !!
+- smooth     : smoothing the template with k5b or variable Gaussian kernel
+- mirror     : mirroring or anti-mirroring
+- floor      : flooring
+- rescale    : rescaling template
+
+The syntax to use is:
+"postprocessing":[
+	{"type":"smooth", "key":value, ...}
+]
+For each postprocessing parameters can be given with the form "key":value. The following parameters are possible:
+- smooth:
+ -> kernel        : "k5b" or "adaptive" (adaptive is a Gaussian kernel with variable width, k5b is only possible for 2D templates), default="adaptive"
+ -> entriesperbin : integer (number of entries per bin used to derive the Gaussian widths; larger number means wider kernel), default=200
+
+- mirror:
+ -> axis : 0, 1 or 2 (axis along which the mirror is applied), default=1 (Y-axis)
+ -> antisymmetric: true or false (to choose between symmetry and antisymmetry), default=false
+
+- floor:
+ -> no parameter
+
+- rescale:
+ -> factor: float (factor used to rescale the template), default=1.
+
 
 Example:
 "postprocessing":[
-	"smooth_adaptive",
-	"mirror",
-	"floor"
+	{"type":"smooth", "kernel":"adaptive", "entriesperbin":200}
+	{"type":"mirror", "axis":1},
+	{"type":"floor"}
 ]
-will smooth the template with a variable Gaussian kernel, mirror the second axis (!! for the moment the axis cannot be specified and the 2nd dimension is automatically used !!), and add a floor.
+will smooth the template with a variable Gaussian kernel, mirror the second axis, and add a floor.
 
 2)-4- Template sums
 -------------------
@@ -102,3 +119,18 @@ Example:
 ],
 will create a template a - b - c
 
+------------------
+2) Version notes
+------------------
+Latest version: 200114_improved-smooth
+
+* 200114_improved-smooth
+  - Improve smoothing
+  - Possibility to give parameters to post-processings
+
+* 150114_add-3D
+  - Enable the creation of 3D templates
+
+* 060113_first-version
+  - Implement 2D templates with fixed size bins and adaptive binning
+  - Implement smoothing (k5B and adaptive), mirroring, flooring 

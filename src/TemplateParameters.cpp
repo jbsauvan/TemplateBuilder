@@ -169,18 +169,53 @@ void TemplateParameters::readTemplate(const Json::Value& tmp)
         m_templates.back()->createTemplate(nbins, minmax);
     }
 
-    // postprocessing TODO: add possibility to specify parameters
+    // postprocessing 
     const Json::Value postprocess = tmp["postprocessing"];
     if(!postprocess.isNull())
     {
         for(unsigned int index = 0; index < postprocess.size(); ++index)
         {
-            string pp = postprocess[index].asString();
-            if(pp=="smooth_k5b") m_templates.back()->addPostProcessing(Template::PostProcessing::SMOOTH_K5B);
-            else if(pp=="smooth_adaptive") m_templates.back()->addPostProcessing(Template::PostProcessing::SMOOTH_ADAPTIVE);
-            else if(pp=="mirror") m_templates.back()->addPostProcessing(Template::PostProcessing::MIRROR);
-            else if(pp=="mirror_inverse") m_templates.back()->addPostProcessing(Template::PostProcessing::MIRROR_INV);
-            else if(pp=="floor") m_templates.back()->addPostProcessing(Template::PostProcessing::FLOOR);
+            const Json::Value pp = postprocess[index];
+            string type = pp["type"].asString();
+            if(type=="smooth")
+            {
+                PostProcessing postproc(PostProcessing::Type::SMOOTH);
+                readSmoothingParameters(pp, postproc);
+                string kernel = "";
+                postproc.getParameter("kernel", kernel);
+                //if(kernel=="k5b" && m_templates.back()->numberOfDimensions()!=2)
+                //{
+                //    stringstream error;
+                //    error << "TemplateParameters::readTemplate(): Smoothing kernel 'k5b' cannot be applied for "<<variables.size()<<"D template '"<<name<<"'";
+                //    throw runtime_error(error.str());
+                //}
+                m_templates.back()->addPostProcessing(postproc);
+            }
+            else if(type=="mirror")
+            {
+                PostProcessing postproc(PostProcessing::Type::MIRROR);
+                readMirrorParameters(pp, postproc);
+                int axisMirror = 0;
+                postproc.getParameter("axis", axisMirror);
+                //if(axisMirror>variables.size()-1)
+                //{
+                //    stringstream error;
+                //    error << "TemplateParameters::readTemplate(): Axis mirror="<<axisMirror<<" for "<<variables.size()<<"D template '"<<name<<"'";
+                //    throw runtime_error(error.str());
+                //}
+                m_templates.back()->addPostProcessing(postproc);
+            }
+            else if(type=="floor")
+            {
+                PostProcessing postproc(PostProcessing::Type::FLOOR);
+                m_templates.back()->addPostProcessing(postproc);
+            }
+            else if(type=="rescale")
+            {
+                PostProcessing postproc(PostProcessing::Type::RESCALE);
+                readRescalingParameters(pp, postproc);
+                m_templates.back()->addPostProcessing(postproc);
+            }
             else
             {
                 stringstream error;
@@ -190,8 +225,39 @@ void TemplateParameters::readTemplate(const Json::Value& tmp)
         }
     }
 
-    // Rescaling TODO: maybe merge this with postprocessing
-    double scaleFactor = tmp.get("rescaling", 1.).asDouble();
-    m_templates.back()->setRescaling( scaleFactor );
+}
 
+
+/*****************************************************************/
+void TemplateParameters::readSmoothingParameters(const Json::Value& smooth, PostProcessing& postproc)
+/*****************************************************************/
+{
+    unsigned int entriesPerBin = smooth.get("entriesperbin", 200).asUInt();
+    string kernel = smooth.get("kernel", "adaptive").asString();
+    if(kernel!="adaptive" && kernel!="k5b")
+    {
+        stringstream error;
+        error << "TemplateParameters::readSmoothingParameters(): Unknown smoothing kernel '"<<kernel<<"'";
+        throw runtime_error(error.str());
+    }
+    postproc.addParameter("kernel", kernel);
+    postproc.addParameter("entriesperbin", (int)entriesPerBin);
+}
+
+/*****************************************************************/
+void TemplateParameters::readMirrorParameters(const Json::Value& mirror, PostProcessing& postproc)
+/*****************************************************************/
+{
+    bool antiMirror = mirror.get("antisymmetric", false).asBool();
+    unsigned int axis = mirror.get("axis", 1).asUInt();
+    postproc.addParameter("antisymmetric", antiMirror);
+    postproc.addParameter("axis", (int)axis);
+}
+
+/*****************************************************************/
+void TemplateParameters::readRescalingParameters(const Json::Value& rescaling, PostProcessing& postproc)
+/*****************************************************************/
+{
+    double factor = rescaling.get("factor", 1.).asDouble();
+    postproc.addParameter("factor", factor);
 }

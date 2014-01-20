@@ -22,6 +22,7 @@
 #include <TEntryList.h>
 #include <TTreeFormula.h>
 
+#include <math.h> 
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -159,7 +160,15 @@ void TemplateManager::loop()
                 {
                     tree->GetEntry(entry);
                     double weight = weightForm->EvalInstance();
+                    if(!std::isfinite(weight))
+                    {
+                        std::cerr<<"[WARNING]   Inf or NaN weight\n";
+                    }
                     sumOfWeights += weight;
+                }
+                if(sumOfWeights==0)
+                {
+                    std::cerr<<"[WARNING]   Sum of weights = 0\n";
                 }
                 //cout<<"Computing sum of weights: "<<nEntries<<"/"<<sumOfWeights<<"\n";
             }
@@ -182,7 +191,12 @@ void TemplateManager::loop()
                 vector<double> point;
                 for(unsigned int v=0;v<tmp->numberOfDimensions();v++)
                 {
-                    point.push_back( varForms[v]->EvalInstance() );
+                    double varValue = varForms[v]->EvalInstance();
+                    if(!std::isfinite(varValue))
+                    {
+                        std::cerr<<"[WARNING]   Inf or NaN variable\n";
+                    }
+                    point.push_back(varValue);
                 }
                 double weight = 1.;
                 if(weightForm)

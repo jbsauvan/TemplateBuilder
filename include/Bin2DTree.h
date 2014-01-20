@@ -83,7 +83,7 @@ class Bin2DTree
         void build();
         std::vector<TLine*> getBoundaryTLines();
         TH2F* fillHistogram();
-        std::pair<TH2F*,TH2F*> fillWidths();
+        std::pair<TH2F*,TH2F*> fillWidths(const TH2F* widthTemplate=NULL);
 
         Bin2DLeaf* leaf(){return m_leaf;}
         void setGridConstraint(TH2F* gridConstraint);

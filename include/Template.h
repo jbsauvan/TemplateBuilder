@@ -27,7 +27,41 @@
 #include <algorithm>
 #include <assert.h>
 #include <iostream>
+#include <map>
 
+
+class PostProcessing
+{
+    public:
+        enum Type
+        {
+            SMOOTH = 0,
+            MIRROR = 1,
+            FLOOR = 2,
+            RESCALE = 3
+        };
+        PostProcessing(Type type);
+        ~PostProcessing();
+
+        Type type() {return m_type;}
+        void addParameter(const std::string& par, const std::string& value);
+        void addParameter(const std::string& par, double value);
+        void addParameter(const std::string& par, int value);
+        void addParameter(const std::string& par, bool value);
+
+        void getParameter(const std::string& par, std::string& value);
+        void getParameter(const std::string& par, double& value);
+        void getParameter(const std::string& par, int& value);
+        void getParameter(const std::string& par, bool& value);
+
+    private:
+        Type m_type;
+        std::map<std::string, std::string> m_stringParameters;
+        std::map<std::string, double> m_floatParameters;
+        std::map<std::string, int> m_intParameters;
+        std::map<std::string, bool> m_boolParameters;
+
+};
 
 class Template
 {
@@ -41,14 +75,6 @@ class Template
         {
             FILES = 0,
             TEMPLATES = 1
-        };
-        enum PostProcessing
-        {
-            SMOOTH_K5B = 0,
-            SMOOTH_ADAPTIVE = 1,
-            MIRROR = 2,
-            MIRROR_INV = 3,
-            FLOOR = 4
         };
 
 

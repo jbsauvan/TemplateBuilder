@@ -8,6 +8,7 @@
 
 using namespace std;
 
+
 /*****************************************************************/
 Bin2DLeaf::Bin2DLeaf()
 /*****************************************************************/
@@ -117,10 +118,11 @@ bool Bin2DLeaf::isNeighbor(Bin2DLeaf* leaf)
 /*****************************************************************/
 {
     bool neighbor = false;
-    if( fabs((leaf->getXMin()-getXMax())/getXMax())<1.e-10 ) neighbor = true;
-    if( fabs((leaf->getXMax()-getXMin())/getXMin())<1.e-10 ) neighbor = true;
-    if( fabs((leaf->getYMin()-getYMax())/getYMax())<1.e-10 ) neighbor = true;
-    if( fabs((leaf->getYMax()-getYMin())/getYMin())<1.e-10 ) neighbor = true;
+    // check if borders are touching
+    if( fabs((leaf->getXMin()-getXMax())/getXMax())<1.e-10 && leaf->getYMax()>getYMin() && leaf->getYMin()<getYMax() ) neighbor = true;
+    if( fabs((leaf->getXMax()-getXMin())/getXMin())<1.e-10 && leaf->getYMax()>getYMin() && leaf->getYMin()<getYMax() ) neighbor = true;
+    if( fabs((leaf->getYMin()-getYMax())/getYMax())<1.e-10 && leaf->getXMax()>getXMin() && leaf->getXMin()<getXMax() ) neighbor = true;
+    if( fabs((leaf->getYMax()-getYMin())/getYMin())<1.e-10 && leaf->getXMax()>getXMin() && leaf->getXMin()<getXMax() ) neighbor = true;
     
     return neighbor;
 }
@@ -1038,16 +1040,17 @@ TH2F* Bin2DTree::fillHistogram()
 }
 
 /*****************************************************************/
-pair<TH2F*,TH2F*> Bin2DTree::fillWidths()
+pair<TH2F*,TH2F*> Bin2DTree::fillWidths(const TH2F* widthTemplate)
 /*****************************************************************/
 {
-        if(!m_gridConstraint)
+        if(!widthTemplate && !m_gridConstraint)
         {
-            cerr<<"ERROR: Bin2DLeaf.fillWidths(): Trying to fill histogram, but the binning is unknown. Define first the gridConstraint.\n";
+            cerr<<"ERROR: Bin2DLeaf.fillWidths(): Trying to fill width, but the binning is unknown. Please give a template histogram of define a gridConstraint.\n";
             exit(1);
         }
-        TH2F* hWidthX = (TH2F*)m_gridConstraint->Clone("widthXFromTree");
-        TH2F* hWidthY = (TH2F*)m_gridConstraint->Clone("widthYFromTree");
+        const TH2F* gridRef = (widthTemplate ? widthTemplate : m_gridConstraint);
+        TH2F* hWidthX = (TH2F*)gridRef->Clone("widthXFromTree");
+        TH2F* hWidthY = (TH2F*)gridRef->Clone("widthYFromTree");
         int nbinsx = hWidthX->GetNbinsX();
         int nbinsy = hWidthX->GetNbinsY();
         map<Bin2DLeaf*, vector< pair<int,int> > > binsInLeaf;
@@ -1057,6 +1060,7 @@ pair<TH2F*,TH2F*> Bin2DTree::fillWidths()
             {
                 double x = hWidthX->GetXaxis()->GetBinCenter(bx);
                 double y = hWidthX->GetYaxis()->GetBinCenter(by);
+                //cout<<"Computing width for ("<<x<<","<<y<<")\n";
                 Bin2DLeaf* leaf = getLeaf(x, y);
                 vector<Bin2DLeaf*> neighborLeaves = findNeighborLeaves(leaf);
                 neighborLeaves.push_back(leaf);
@@ -1065,12 +1069,13 @@ pair<TH2F*,TH2F*> Bin2DTree::fillWidths()
                 double sumw = 0.;
                 double sumwx = 0.;
                 double sumwy = 0.;
+                //cout<<" "<<neighborLeaves.size()<<" neighbor leaves\n";
                 for(;itLeaf!=itELeaf;++itLeaf)
                 {
                     double xi = (*itLeaf)->getXCenter();
                     double yi = (*itLeaf)->getYCenter();
-                    double dx = xi-x;
-                    double dy = yi-y;
+                    double dx = fabs(xi-x);
+                    double dy = fabs(yi-y);
                     double wxi = (*itLeaf)->getXWidth();
                     double wyi = (*itLeaf)->getYWidth();
                     if(dx<0.05*wxi) dx = 0.05*wxi;
@@ -1079,9 +1084,11 @@ pair<TH2F*,TH2F*> Bin2DTree::fillWidths()
                     sumw += 1./dr2;
                     sumwx += wxi/dr2;
                     sumwy += wyi/dr2;
+                    //cout<<"  Neighbor leaf dx="<<dx<<",dy="<<dy<<",w="<<1./dr2<<"\n";
                 }
                 double widthx = sumwx/sumw;
                 double widthy = sumwy/sumw;
+                //cout<<" Width x="<<widthx<<",y="<<widthy<<"\n";
                 hWidthX->SetBinContent(bx,by,widthx);
                 hWidthY->SetBinContent(bx,by,widthy);
                 hWidthX->SetBinError(bx,by,0.);

@@ -328,7 +328,9 @@ pair<double,double> GaussKernelSmoother::smoothed2DValueError(const TH1* histo, 
             }
             // FIXME: this assumes that all bins have the same size
             int dby = abs(by-biny);
+            double dbr = sqrt( (double)(dbx*dbx+dby*dby) );
             double wi = wi1*weightsY[dby];
+            wi *= 1./(dbr+1.);
             //////////////////////////
             //double xi = histo->GetXaxis()->GetBinCenter(bxcp) + xshift;
             //double yi = histo->GetYaxis()->GetBinCenter(bycp) + yshift;
@@ -479,7 +481,9 @@ pair<double,double> GaussKernelSmoother::smoothed3DValueError(const TH1* histo, 
                 }
                 // FIXME: this assumes that all bins have the same size
                 int dbz = abs(bz-binz);
+                double dbr = sqrt( (double)(dbx*dbx+dby*dby+dbz*dbz) );
                 double wi = wi2*weightsZ[dbz];
+                wi *= 1./((dbr+1.)*(dbr+1.));
                 //////////////////////////////////////////////////////////////
                 //double xi = histo->GetXaxis()->GetBinCenter(bxcp) + xshift;
                 //double yi = histo->GetYaxis()->GetBinCenter(bycp) + yshift;

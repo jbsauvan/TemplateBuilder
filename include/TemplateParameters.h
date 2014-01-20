@@ -44,6 +44,9 @@ class TemplateParameters
 
     private:
         void readTemplate(const Json::Value& tmp);
+        void readSmoothingParameters(const Json::Value& smooth, PostProcessing& postproc);
+        void readMirrorParameters(const Json::Value& mirror, PostProcessing& postproc);
+        void readRescalingParameters(const Json::Value& rescaling, PostProcessing& postproc);
 
         std::string m_inputDirectory;
         std::string m_outputFileName;

@@ -23,8 +23,7 @@
 #include "TH3F.h"
 
 #include <iostream>
-#include <sstream>
-#include <stdexcept>
+
 
 using namespace std;
 
@@ -42,86 +41,6 @@ PostProcessing::~PostProcessing()
 {
 }
 
-
-/*****************************************************************/
-void PostProcessing::addParameter(const string& par, const string& value)
-/*****************************************************************/
-{
-    m_stringParameters[par] = value;
-}
-
-/*****************************************************************/
-void PostProcessing::addParameter(const string& par, double value)
-/*****************************************************************/
-{
-    m_floatParameters[par] = value;
-}
-
-/*****************************************************************/
-void PostProcessing::addParameter(const string& par, int value)
-/*****************************************************************/
-{
-    m_intParameters[par] = value;
-}
-
-/*****************************************************************/
-void PostProcessing::addParameter(const string& par, bool value)
-/*****************************************************************/
-{
-    m_boolParameters[par] = value;
-}
-
-/*****************************************************************/
-void PostProcessing::getParameter(const string& par, string& value)
-/*****************************************************************/
-{
-    if(m_stringParameters.find(par)==m_stringParameters.end())
-    {
-        stringstream error;
-        error <<"PostProcessing::getParamater(): Trying to retrieve unknown string parameter '"<<par<<"'\n";
-        throw runtime_error(error.str());
-    }
-    value = m_stringParameters[par];
-}
-
-/*****************************************************************/
-void PostProcessing::getParameter(const string& par, double& value)
-/*****************************************************************/
-{
-    if(m_floatParameters.find(par)==m_floatParameters.end())
-    {
-        stringstream error;
-        error <<"PostProcessing::getParamater(): Trying to retrieve unknown float parameter '"<<par<<"'\n";
-        throw runtime_error(error.str());
-    }
-    value = m_floatParameters[par];
-}
-
-/*****************************************************************/
-void PostProcessing::getParameter(const string& par, int& value)
-/*****************************************************************/
-{
-    if(m_intParameters.find(par)==m_intParameters.end())
-    {
-        stringstream error;
-        error <<"PostProcessing::getParamater(): Trying to retrieve unknown int parameter '"<<par<<"'\n";
-        throw runtime_error(error.str());
-    }
-    value = m_intParameters[par];
-}
-
-/*****************************************************************/
-void PostProcessing::getParameter(const string& par, bool& value)
-/*****************************************************************/
-{
-    if(m_boolParameters.find(par)==m_boolParameters.end())
-    {
-        stringstream error;
-        error <<"PostProcessing::getParamater(): Trying to retrieve unknown bool parameter '"<<par<<"'\n";
-        throw runtime_error(error.str());
-    }
-    value = m_boolParameters[par];
-}
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////:
@@ -142,6 +61,8 @@ Template::Template(const Template& tmp)
     {
         m_template = dynamic_cast<TH2F*>(tmp.getTemplate()->Clone(hname.str().c_str()));
     }
+    setWidths(tmp.getWidths());
+    setRaw1DTemplates(tmp.getRaw1DTemplates());
 
 }
 
@@ -161,8 +82,24 @@ Template::~Template()
         {
             delete m_widths[axis];
         }
-        m_widths.clear();
     }
+    m_widths.clear();
+    for(unsigned int axis=0;axis<m_raw1DTemplates.size();axis++)
+    {
+        if(m_raw1DTemplates[axis])
+        {
+            delete m_raw1DTemplates[axis];
+        }
+    }
+    m_raw1DTemplates.clear();
+    for(unsigned int n=0;n<m_controlPlots.size();n++)
+    {
+        if(m_controlPlots[n])
+        {
+            delete m_controlPlots[n];
+        }
+    }
+    m_controlPlots.clear();
 }
 
 /*****************************************************************/
@@ -172,6 +109,45 @@ const string& Template::getVariable(unsigned int index) const
     assert(index<3);
     return m_variables.at(index);
 }
+
+
+/*****************************************************************/
+TH1D* Template::getProjected1DTemplate(unsigned int axis)
+/*****************************************************************/
+{
+    if(axis>=numberOfDimensions())
+    {
+        stringstream error;
+        error << "Template::getProjected1DTemplate(): Projection requested on axis "<<axis<<" for "<<numberOfDimensions()<<"D template '"<<m_name<<"'\n";
+        throw runtime_error(error.str());
+    }
+    TAxis* ax = NULL;
+    if(axis==0)      ax = m_template->GetXaxis();
+    else if(axis==1) ax = m_template->GetYaxis();
+    else if(axis==2) ax = m_template->GetZaxis();
+    unsigned int nbins = ax->GetNbins();
+
+    stringstream projName;
+    projName << m_template->GetName() << "_projFromTmp"<< axis;
+    TH1D* projectedTemplate = NULL;
+
+    if(numberOfDimensions()==2)
+    {
+        TH2F* tmp = dynamic_cast<TH2F*>(m_template);
+        if(axis==0)      projectedTemplate = tmp->ProjectionX(projName.str().c_str(), 1, nbins, "e");
+        else if(axis==1) projectedTemplate = tmp->ProjectionY(projName.str().c_str(), 1, nbins, "e");
+    }
+    if(numberOfDimensions()==3)
+    {
+        TH3F* tmp = dynamic_cast<TH3F*>(m_template);
+        if(axis==0)      projectedTemplate = tmp->ProjectionX(projName.str().c_str(), 1, nbins, 1, nbins, "e");
+        else if(axis==1) projectedTemplate = tmp->ProjectionY(projName.str().c_str(), 1, nbins, 1, nbins, "e");
+        else if(axis==2) projectedTemplate = tmp->ProjectionZ(projName.str().c_str(), 1, nbins, 1, nbins, "e");
+    }
+
+    return projectedTemplate;
+}
+
 
 /*****************************************************************/
 void Template::setVariables(const vector<string>& vars)
@@ -199,6 +175,14 @@ void Template::createTemplate(const vector<unsigned int>& nbins, const vector< p
         }
         m_widths.clear();
     }
+    for(unsigned int axis=0;axis<m_raw1DTemplates.size();axis++)
+    {
+        if(m_raw1DTemplates[axis])
+        {
+            delete m_raw1DTemplates[axis];
+        }
+        m_raw1DTemplates.clear();
+    }
     m_minmax = minmax;
     if(nbins.size()==2)
     {
@@ -212,8 +196,9 @@ void Template::createTemplate(const vector<unsigned int>& nbins, const vector< p
 
     for(unsigned int axis=0;axis<nbins.size();axis++)
     {
-        stringstream nameWidth;
+        stringstream nameWidth, nameProj;
         nameWidth << m_name << "_width" << axis;
+        nameProj << m_name << "_proj" << axis;
         if(nbins.size()==2)
         {
             m_widths.push_back(new TH2F(nameWidth.str().c_str(),nameWidth.str().c_str(),nbins[0],minmax[0].first,minmax[0].second,nbins[1],minmax[1].first,minmax[1].second));
@@ -223,6 +208,8 @@ void Template::createTemplate(const vector<unsigned int>& nbins, const vector< p
             m_widths.push_back(new TH3F(nameWidth.str().c_str(),nameWidth.str().c_str(),nbins[0],minmax[0].first,minmax[0].second,nbins[1],minmax[1].first,minmax[1].second,nbins[2],minmax[2].first,minmax[2].second));
         }
         m_widths.back()->Sumw2();
+        m_raw1DTemplates.push_back(new TH1D(nameProj.str().c_str(),nameProj.str().c_str(),nbins[axis],minmax[axis].first,minmax[axis].second));
+        m_raw1DTemplates.back()->Sumw2();
     }
 }
 
@@ -234,6 +221,27 @@ void Template::setTemplate(const TH1* histo)
         m_template->Delete();
     m_template = dynamic_cast<TH1*>(histo->Clone(m_name.c_str()));
     //m_template->Sumw2();
+}
+
+/*****************************************************************/
+void Template::setRaw1DTemplates(const vector<TH1D*>& histos)
+/*****************************************************************/
+{
+    for(unsigned int axis=0;axis<m_raw1DTemplates.size();axis++)
+    {
+        if(m_raw1DTemplates[axis])
+        {
+            delete m_raw1DTemplates[axis];
+        }
+        m_raw1DTemplates.clear();
+    }
+    for(unsigned int axis=0;axis<histos.size();axis++)
+    {
+        stringstream name;
+        name << m_name << "_proj" << axis;
+        m_raw1DTemplates.push_back(dynamic_cast<TH1D*>(histos[axis]->Clone(name.str().c_str())));
+    }
+
 }
 
 /*****************************************************************/
@@ -262,4 +270,83 @@ void Template::store(const vector<double>& vs, double w)
 {
     m_entries.push_back(vs);
     m_weights.push_back(w);
+}
+
+
+
+/*****************************************************************/
+void Template::reweight1D(unsigned int axis, unsigned int bin, double weight)
+/*****************************************************************/
+{
+    if(axis>=numberOfDimensions())
+    {
+        stringstream error;
+        error << "Template::reweight1D(): Reweighting requested on axis "<<axis<<" for "<<numberOfDimensions()<<"D template '"<<m_name<<"'\n";
+        throw runtime_error(error.str());
+    }
+    unsigned int nbins1 = 0;
+    unsigned int nbins2 = 0;
+    if(axis==0)
+    {
+        nbins1 = m_template->GetNbinsY();
+        nbins2 = m_template->GetNbinsZ();
+    }
+    else if(axis==1)
+    {
+        nbins1 = m_template->GetNbinsZ();
+        nbins2 = m_template->GetNbinsX();
+    }
+    else if(axis==2)
+    {
+        nbins1 = m_template->GetNbinsX();
+        nbins2 = m_template->GetNbinsY();
+    }
+    for(unsigned int b1=1;b1<=nbins1;b1++)
+    {
+        for(unsigned int b2=1;b2<=nbins2;b2++)
+        {
+            if(axis==0) 
+            {
+                double content = m_template->GetBinContent(bin,b1,b2);
+                m_template->SetBinContent(bin,b1,b2, content*weight);
+            }
+            else if(axis==1) 
+            {
+                double content = m_template->GetBinContent(b2,bin,b1);
+                m_template->SetBinContent(b2,bin,b1, content*weight);
+            }
+            else if(axis==2) 
+            {
+                double content = m_template->GetBinContent(b1,b2,bin);
+                m_template->SetBinContent(b1,b2,bin, content*weight);
+            }
+        }
+    }
+
+}
+
+
+/*****************************************************************/
+void Template::makeProjectionControlPlot(const string& tag)
+/*****************************************************************/
+{
+    for(unsigned int axis=0;axis<numberOfDimensions();axis++)
+    {
+        stringstream plotName, rawName, projName;
+        plotName << "control_" << getName() << "_projAxis" << axis << "_" << tag;
+        rawName << "control_" << getName() << "_projAxis" << axis << "_" << tag << "_raw";
+        projName << "control_" << getName() << "_projAxis" << axis << "_" << tag << "_proj";
+        TCanvas* c = new TCanvas(plotName.str().c_str(),plotName.str().c_str(), 700,700);
+        TH1D* raw1D = dynamic_cast<TH1D*>(getRaw1DTemplate(axis)->Clone(rawName.str().c_str()));
+        TH1D* proj1D = dynamic_cast<TH1D*>(getProjected1DTemplate(axis)->Clone(projName.str().c_str()));
+        raw1D->SetLineColor(kRed);
+        raw1D->SetLineWidth(2);
+        proj1D->SetLineColor(kBlack);
+        proj1D->SetMarkerColor(kBlack);
+        proj1D->SetMarkerStyle(20);
+        raw1D->SetXTitle(getVariable(axis).c_str());
+        raw1D->Draw("hist");
+        proj1D->Draw("same");
+        addControlPlot(c);
+    }
 }

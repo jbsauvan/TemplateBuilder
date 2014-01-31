@@ -181,8 +181,7 @@ void TemplateParameters::readTemplate(const Json::Value& tmp)
             {
                 PostProcessing postproc(PostProcessing::Type::SMOOTH);
                 readSmoothingParameters(pp, postproc);
-                string kernel = "";
-                postproc.getParameter("kernel", kernel);
+                //string kernel = postproc.getParameter<string>("kernel");
                 //if(kernel=="k5b" && m_templates.back()->numberOfDimensions()!=2)
                 //{
                 //    stringstream error;
@@ -195,8 +194,7 @@ void TemplateParameters::readTemplate(const Json::Value& tmp)
             {
                 PostProcessing postproc(PostProcessing::Type::MIRROR);
                 readMirrorParameters(pp, postproc);
-                int axisMirror = 0;
-                postproc.getParameter("axis", axisMirror);
+                //unsigned int axisMirror = postproc.getParameter<unsigned int>("axis");
                 //if(axisMirror>variables.size()-1)
                 //{
                 //    stringstream error;
@@ -214,6 +212,12 @@ void TemplateParameters::readTemplate(const Json::Value& tmp)
             {
                 PostProcessing postproc(PostProcessing::Type::RESCALE);
                 readRescalingParameters(pp, postproc);
+                m_templates.back()->addPostProcessing(postproc);
+            }
+            else if(type=="reweight")
+            {
+                PostProcessing postproc(PostProcessing::Type::REWEIGHT);
+                readReweightingParameters(pp, postproc);
                 m_templates.back()->addPostProcessing(postproc);
             }
             else
@@ -241,7 +245,7 @@ void TemplateParameters::readSmoothingParameters(const Json::Value& smooth, Post
         throw runtime_error(error.str());
     }
     postproc.addParameter("kernel", kernel);
-    postproc.addParameter("entriesperbin", (int)entriesPerBin);
+    postproc.addParameter("entriesperbin", entriesPerBin);
 }
 
 /*****************************************************************/
@@ -251,7 +255,7 @@ void TemplateParameters::readMirrorParameters(const Json::Value& mirror, PostPro
     bool antiMirror = mirror.get("antisymmetric", false).asBool();
     unsigned int axis = mirror.get("axis", 1).asUInt();
     postproc.addParameter("antisymmetric", antiMirror);
-    postproc.addParameter("axis", (int)axis);
+    postproc.addParameter("axis", axis);
 }
 
 /*****************************************************************/
@@ -260,4 +264,38 @@ void TemplateParameters::readRescalingParameters(const Json::Value& rescaling, P
 {
     double factor = rescaling.get("factor", 1.).asDouble();
     postproc.addParameter("factor", factor);
+}
+
+/*****************************************************************/
+void TemplateParameters::readReweightingParameters(const Json::Value& reweighting, PostProcessing& postproc)
+/*****************************************************************/
+{
+    vector<unsigned int> axes;
+    const Json::Value ax = reweighting["axes"];
+    if(!ax.isNull())
+    {
+        for(unsigned int index = 0; index < ax.size(); ++index)
+        {
+            unsigned int axis = ax[index].asUInt();
+            axes.push_back(axis);
+        }
+    }
+    vector< vector<double> > binss;
+    const Json::Value binnings = reweighting["rebinning"];
+    if(!binnings.isNull())
+    {
+        for(unsigned int index = 0; index < binnings.size(); ++index)
+        {
+            vector< double > bins;
+            const Json::Value binning = binnings[index];
+            for(unsigned int b = 0; b < binning.size(); ++b)
+            {
+                double boundary = binning[b].asDouble();
+                bins.push_back(boundary);
+            }
+            binss.push_back(bins);
+        }
+    }
+    postproc.addParameter("axes", axes);
+    postproc.addParameter("rebinning", binss);
 }

@@ -268,7 +268,7 @@ bool BinLeaf::inBin(const std::vector<double>& xs)
 {
     if(xs.size()!=m_ndim)
     {
-        cout<<"WARNING: BinLeaf::inBin(): number of dimensions doesn't match\n";
+        cout<<"[WARN]   BinLeaf::inBin(): number of dimensions doesn't match\n";
         return false;
     }
     bool isInBin = true;
@@ -285,7 +285,7 @@ bool BinLeaf::addEntry(const std::vector<double>& xsi, double wi)
 {
     if(xsi.size()!=m_ndim)
     {
-        cout<<"WARNING: BinLeaf::addEntry(): number of dimensions doesn't match\n";
+        cout<<"[WARN]   BinLeaf::addEntry(): number of dimensions doesn't match\n";
         return false;
     }
     // Check if it is contained in the bin
@@ -658,6 +658,33 @@ unsigned int BinTree::maxLeafIndex()
 
 
 /*****************************************************************/
+pair<int,int> BinTree::entriesIfSplit(double cut, unsigned int axis)
+/*****************************************************************/
+{
+    if(!m_leaf)
+    {
+        cerr<<"ERROR: BinTree::entriesIfSplit(): This method can only be applied on terminal nodes\n";
+        exit(1);
+    }
+    // Cannot split the bin if the cut value is not contained within the bin boundaries
+    if(cut<=getBinBoundaries()[axis].first || cut>=getBinBoundaries()[axis].second)
+    {
+        cerr<<"ERROR: BinTree.entriesIfSplit(): Trying to split a node outside its bin boundaries. "<<cut<<"!=("<<getBinBoundaries()[axis].first<<","<<getBinBoundaries()[axis].second<<")";
+        exit(1);
+    }
+
+    int entries1 = 0;
+    int entries2 = 0;
+    vector< vector<double> > entries = m_leaf->getEntries();
+    for(unsigned int e=0;e<entries.size();e++)
+    {
+        if(entries[e][axis]<cut) entries1++;
+        else entries2++;
+    }
+    return make_pair(entries1,entries2);
+}
+
+/*****************************************************************/
 void BinTree::splitLeaf(double cut, unsigned int maxLeafIndex, unsigned int axis)
 /*****************************************************************/
 {
@@ -910,8 +937,8 @@ void BinTree::build()
     // If the tree already contains too small number of entries, it does nothing
     if(getNEntries()<2.*m_minLeafEntries)
     {
-        cout<<"[WARNING] Total number of entries = "<<getNEntries()<<" < 2 x "<<m_minLeafEntries<<". The procedure stops with one single bin\n";
-        cout<<"[WARNING]   You'll have to reduce the minimum number of entries per bin if you want to have more than one bin.\n";
+        cout<<"[WARN] Total number of entries = "<<getNEntries()<<" < 2 x "<<m_minLeafEntries<<". The procedure stops with one single bin\n";
+        cout<<"[WARN]   You'll have to reduce the minimum number of entries per bin if you want to have more than one bin.\n";
         return;
     }
     // Start with first splitting
@@ -977,7 +1004,8 @@ void BinTree::build()
 
     // Look if some bins are more than 50% empty. If it is the case, the empty part is separated (including one event)
     // from the part of the bin that contains all the entries
-    bool finish = false;
+    // TODO: Maybe this is not necessary
+    /*bool finish = false;
     vector<double> perc0;
     vector<double> perc100;
     perc0.push_back(0.);
@@ -1040,10 +1068,115 @@ void BinTree::build()
                 finish = true;
             }
         }
+    }*/
+
+    // Split leaves close to the boundaries
+    vector< std::pair<double,double> > boundaries = getBinBoundaries();
+    vector<BinTree*> terminalNodes = getTerminalNodes();
+    for(unsigned int i=0;i<terminalNodes.size();i++)
+    {
+        BinTree* node = terminalNodes[i];
+        BinLeaf* leaf = node->leaf();
+        int nSplitAxis = 0;
+        vector<bool> splits;
+        for(unsigned int axis=0;axis<m_ndim;axis++)
+        {
+            splits.push_back(false);
+            if(leaf->getMin(axis)==boundaries[axis].first || leaf->getMax(axis)==boundaries[axis].second)
+            {
+                splits[axis] = true;
+                nSplitAxis ++;
+                //cout<<"Will split bin ["<<leaf->getMin(axis)<<","<<leaf->getMax(axis)<<"] along axis "<<axis<<"\n";
+            }
+        }
+        vector<BinTree*> nodes;
+        vector< pair<BinTree*,int> > nodesToSplitFurther;
+        nodes.push_back(node);
+        for(unsigned int axis=0;axis<m_ndim;axis++)
+        {
+            if(splits[axis])
+            {
+                vector<BinTree*> newNodes;
+                for(unsigned int n=0;n<nodes.size();n++)
+                {
+                    BinTree* node = nodes[n];
+                    double middle = (node->getMax(axis)+node->getMin(axis))/2.;
+                    //cout<<"  Splitting border bin at "<<middle<<" on axis "<<axis<<"\n";
+                    //cout<<"    Nentries before = "<<node->getNEntries()<<"\n";
+                    pair<int,int> entriesAfterCut = node->entriesIfSplit(middle,axis);
+                    //cout<<"    Nentries after = "<<entriesAfterCut.first<<"+"<<entriesAfterCut.second<<"\n";
+                    //if(node->getNEntries()>0)
+                    //{
+                    //    cout<<"    Ratio = "<<(double)min(entriesAfterCut.first,entriesAfterCut.second)/(double)max(entriesAfterCut.first,entriesAfterCut.second)<<"\n";
+                    //}
+                    if(node->getNEntries()>0 && (double)min(entriesAfterCut.first,entriesAfterCut.second)/(double)max(entriesAfterCut.first,entriesAfterCut.second)<0.7)
+                    {
+                        node->splitLeaf(middle, maxLeafIndex(), axis);
+                        newNodes.push_back(node->getSons()[0]);
+                        newNodes.push_back(node->getSons()[1]);
+                        //cout<<"    Splitting\n";
+                        //cout<<"    Nentries after = "<<node->getSons()[0]->getNEntries()<<"+"<<node->getSons()[1]->getNEntries()<<"\n";
+                        if(nSplitAxis==1)
+                        //if(nSplitAxis==1 && min(node->getSons()[0]->getNEntries(),node->getSons()[1]->getNEntries())>0 &&
+                        //        (double)min(node->getSons()[0]->getNEntries(),node->getSons()[1]->getNEntries())/(double)max(node->getSons()[0]->getNEntries(),node->getSons()[1]->getNEntries())<0.7)
+                        {
+                        //    cout<<"   Ratio = "<<(double)min(node->getSons()[0]->getNEntries(),node->getSons()[1]->getNEntries())/(double)max(node->getSons()[0]->getNEntries(),node->getSons()[1]->getNEntries())<<"\n";
+                            nodesToSplitFurther.push_back(make_pair(node->getSons()[0],axis));
+                            nodesToSplitFurther.push_back(make_pair(node->getSons()[1],axis));
+                        }
+                        nsplits += 1;
+                    }
+                }
+                nodes.clear();
+                for(unsigned int n=0;n<newNodes.size();n++)
+                {
+                    nodes.push_back(newNodes[n]);
+                }
+            }
+        }
+        // split bins further
+        int ns = 0;
+        while(nodesToSplitFurther.size()>0 && ns<2)
+        {
+            //cout<<"ns = "<<ns<<"\n";
+            vector< pair<BinTree*,int> > newNodesToSplitFurther;
+            for(unsigned int j=0;j<nodesToSplitFurther.size();j++)
+            {
+                BinTree* node2 = nodesToSplitFurther[j].first;
+                int axis = nodesToSplitFurther[j].second;
+                if(node2->getMin(axis)==boundaries[axis].first || node2->getMax(axis)==boundaries[axis].second)
+                {
+                    //cout<<"    Split bin ["<<node2->getMin(axis)<<","<<node2->getMax(axis)<<"] along axis "<<axis<<"\n";
+                    double middle = (node2->getMax(axis)+node2->getMin(axis))/2.;
+                    pair<int,int> entriesAfterCut = node2->entriesIfSplit(middle,axis);
+                    //cout<<"    Nentries after = "<<entriesAfterCut.first<<"+"<<entriesAfterCut.second<<"\n";
+                    //if(node2->getNEntries()>0)
+                    //{
+                    //    cout<<"    Ratio = "<<(double)min(entriesAfterCut.first,entriesAfterCut.second)/(double)max(entriesAfterCut.first,entriesAfterCut.second)<<"\n";
+                    //}
+                    if(node2->getNEntries()>0 && (double)min(entriesAfterCut.first,entriesAfterCut.second)/(double)max(entriesAfterCut.first,entriesAfterCut.second)<0.5)
+                    {
+                        node2->splitLeaf(middle, maxLeafIndex(), axis);
+                        //cout<<"    Splitting\n";
+                        nsplits += 1;
+                        //if(nSplitAxis==1 && min(node2->getSons()[0]->getNEntries(),node2->getSons()[1]->getNEntries())>0 &&
+                        //        (double)min(node2->getSons()[0]->getNEntries(),node2->getSons()[1]->getNEntries())/(double)max(node2->getSons()[0]->getNEntries(),node2->getSons()[1]->getNEntries())<0.7)
+                        //{
+                         //   cout<<"   Ratio = "<<(double)min(node2->getSons()[0]->getNEntries(),node2->getSons()[1]->getNEntries())/(double)max(node2->getSons()[0]->getNEntries(),node2->getSons()[1]->getNEntries())<<"\n";
+                            newNodesToSplitFurther.push_back(make_pair(node2->getSons()[0],axis));
+                            newNodesToSplitFurther.push_back(make_pair(node2->getSons()[1],axis));
+                        //}
+                    }
+                }
+            }
+            nodesToSplitFurther.clear();
+            for(unsigned int n=0;n<newNodesToSplitFurther.size();n++)
+            {
+                nodesToSplitFurther.push_back(newNodesToSplitFurther[n]);
+            }
+            ns ++;
+        }
     }
-    //cout << "[INFO]   "<< setw(3) << 100 << "% [";
-    //for (int x=0; x<50; x++) cout << "=";
-    //cout << "]" << endl;
 }
 
 /*****************************************************************/

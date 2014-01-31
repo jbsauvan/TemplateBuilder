@@ -40,11 +40,13 @@ class TemplateBuilder
         std::map<std::string, Template*>::iterator templateEnd() {return m_templates.end();}
 
         void fillTemplates();
-        void postProcessing();
+        void postProcessing(Template::Origin origin=Template::Origin::FILES);
         void buildTemplatesFromTemplates();
 
 
     private:
+        void applyReweighting(Template* tmp, const PostProcessing& pp);
+
         std::map<std::string, Template*> m_templates;
 };
 

@@ -5,6 +5,7 @@
 
 #include "TH2F.h"
 #include "TH3F.h"
+#include "TGraph.h"
 
 #include <iostream>
 #include <sstream>
@@ -39,7 +40,7 @@ void TemplateBuilder::addTemplate(Template* tmp)
 {
     if(m_templates.find(tmp->getName())!=m_templates.end())
     {
-        cout<<"[WARNING] TemplateBuilder::addTemplate(): template name '"<<tmp->getName()<<"' exists already. The template definition will be overwritten.\n";
+        cout<<"[WARN] TemplateBuilder::addTemplate(): template name '"<<tmp->getName()<<"' exists already. The template definition will be overwritten.\n";
     }
     m_templates[tmp->getName()] = tmp;
 }
@@ -73,27 +74,65 @@ void TemplateBuilder::fillTemplates()
 
         if(tmp->getBinningType()==Template::BinningType::FIXED)
         {
-            cout<< "[INFO] Building "<<tmp->numberOfDimensions()<<"D template '"<<tmp->getName()<<"' with standard binning\n";
+            cout<< "[INFO] Building "<<tmp->numberOfDimensions()<<"D template '"<<tmp->getName()<<"' with fixed size binning\n";
+            int overflows = 0;
             if(tmp->numberOfDimensions()==2)
             {
-                TH2F* histo = dynamic_cast<TH2F*>(tmpIt->second->getTemplate());
+                TH2F* histo = dynamic_cast<TH2F*>(tmp->getTemplate());
                 for(unsigned int e=0;e<tmp->entries().size();e++)
                 {
-                    histo->Fill(tmp->entries()[e][0],tmp->entries()[e][1],tmp->weights()[e]);
+                    int bin = histo->Fill(tmp->entries()[e][0],tmp->entries()[e][1],tmp->weights()[e]);
+                    if(bin!=-1)
+                    {
+                        tmp->getRaw1DTemplate(0)->Fill(tmp->entries()[e][0], tmp->weights()[e]);
+                        tmp->getRaw1DTemplate(1)->Fill(tmp->entries()[e][1], tmp->weights()[e]);
+                    }
+                    else
+                    {
+                        overflows++;
+                    }
                 }
             }
             else if(tmp->numberOfDimensions()==3)
             {
-                TH3F* histo = dynamic_cast<TH3F*>(tmpIt->second->getTemplate());
+                TH3F* histo = dynamic_cast<TH3F*>(tmp->getTemplate());
                 for(unsigned int e=0;e<tmp->entries().size();e++)
                 {
-                    histo->Fill(tmp->entries()[e][0],tmp->entries()[e][1],tmp->entries()[e][2],tmp->weights()[e]);
+                    int bin = histo->Fill(tmp->entries()[e][0],tmp->entries()[e][1],tmp->entries()[e][2],tmp->weights()[e]);
+                    if(bin!=-1)
+                    {
+                        tmp->getRaw1DTemplate(0)->Fill(tmp->entries()[e][0], tmp->weights()[e]);
+                        tmp->getRaw1DTemplate(1)->Fill(tmp->entries()[e][1], tmp->weights()[e]);
+                        tmp->getRaw1DTemplate(2)->Fill(tmp->entries()[e][2], tmp->weights()[e]);
+                    }
+                    else
+                    {
+                        overflows++;
+                    }
                 }
             }
+            cout<<"[WARN]   "<<overflows<<" events in under/overflow bins\n";
         }
         else if(tmp->getBinningType()==Template::BinningType::ADAPTIVE)
         {
             cout<< "[INFO] Deriving adaptive binning for "<<tmp->numberOfDimensions()<<"D template '"<<tmp->getName()<<"'\n";
+            if(tmp->numberOfDimensions()==2)
+            {
+                for(unsigned int e=0;e<tmp->entries().size();e++)
+                {
+                    tmp->getRaw1DTemplate(0)->Fill(tmp->entries()[e][0], tmp->weights()[e]);
+                    tmp->getRaw1DTemplate(1)->Fill(tmp->entries()[e][1], tmp->weights()[e]);
+                }
+            }
+            else if(tmp->numberOfDimensions()==3)
+            {
+                for(unsigned int e=0;e<tmp->entries().size();e++)
+                {
+                    tmp->getRaw1DTemplate(0)->Fill(tmp->entries()[e][0], tmp->weights()[e]);
+                    tmp->getRaw1DTemplate(1)->Fill(tmp->entries()[e][1], tmp->weights()[e]);
+                    tmp->getRaw1DTemplate(2)->Fill(tmp->entries()[e][2], tmp->weights()[e]);
+                }
+            }
             BinTree bintree(tmp->getMinMax(), tmp->entries(), tmp->weights());
             bintree.setMinLeafEntries(tmp->getEntriesPerBin());
             TH1* gridConstraint = (TH1*)tmp->getTemplate()->Clone("gridConstraint");
@@ -116,12 +155,14 @@ void TemplateBuilder::fillTemplates()
             tmp->setWidths(widths);
             gridConstraint->Delete();
         }
+        // make control plot
+        tmp->makeProjectionControlPlot("afterFill");
     }
 }
 
 
 /*****************************************************************/
-void TemplateBuilder::postProcessing()
+void TemplateBuilder::postProcessing(Template::Origin origin)
 /*****************************************************************/
 {
     map<string, Template*>::iterator tmpIt = m_templates.begin();
@@ -129,7 +170,7 @@ void TemplateBuilder::postProcessing()
     for(;tmpIt!=tmpItE;++tmpIt)
     {
         Template* tmp = tmpIt->second;
-        if(tmp->getOrigin()!=Template::Origin::FILES) continue;
+        if(tmp->getOrigin()!=origin) continue;
 
         double sumOfweightsBefore = tmp->getTemplate()->GetSumOfWeights();
         double scaleFactor = 1.;
@@ -142,8 +183,7 @@ void TemplateBuilder::postProcessing()
             {
                 case PostProcessing::Type::SMOOTH:
                     {
-                        string kernel = "";
-                        it->getParameter("kernel",kernel);
+                        string kernel = it->getParameter<string>("kernel");
                         if(kernel=="k5b")
                         {
                             if(tmp->numberOfDimensions()!=2)
@@ -164,8 +204,7 @@ void TemplateBuilder::postProcessing()
                             {
                                 vector< pair<double,double> > minmax = tmp->getMinMax();
                                 BinTree bintree(minmax, tmp->entries(), tmp->weights());
-                                int entriesPerBin = 200;
-                                it->getParameter("entriesperbin", entriesPerBin);
+                                unsigned int entriesPerBin = it->getParameter<unsigned int>("entriesperbin");
                                 bintree.setMinLeafEntries(entriesPerBin);
                                 cout<< "[INFO]   First deriving "<<tmp->numberOfDimensions()<<"D adaptive binning\n";
                                 bintree.build();
@@ -197,14 +236,13 @@ void TemplateBuilder::postProcessing()
                             error << "TemplateBuilder::postProcessing(): ('"<<tmp->getName()<<"') Unknown smoothing kernel '"<<kernel<<"'\n";
                             throw runtime_error(error.str());
                         }
+                        tmp->makeProjectionControlPlot("afterSmooth");
                         break;
                     }
                 case PostProcessing::Type::MIRROR:
                     {
-                        bool antiMirror = false;
-                        it->getParameter("antisymmetric", antiMirror);
-                        int axis = 1;
-                        it->getParameter("axis", axis);
+                        bool antiMirror = it->getParameter<bool>("antisymmetric");
+                        unsigned int axis = it->getParameter<unsigned int>("axis");
                         if((unsigned int)axis>=tmp->numberOfDimensions())
                         {
                             stringstream error;
@@ -290,6 +328,7 @@ void TemplateBuilder::postProcessing()
                                 }
                             }
                         }
+                        tmp->makeProjectionControlPlot("afterMirror");
                         break;
                     }
                 case PostProcessing::Type::FLOOR:
@@ -329,13 +368,20 @@ void TemplateBuilder::postProcessing()
                                 }
                             }
                         }
+                        tmp->makeProjectionControlPlot("afterFloor");
                         break;
                     }
                 case PostProcessing::Type::RESCALE:
                     {
-                        double factor = 1.;
-                        it->getParameter("factor", factor);
+                        double factor = it->getParameter<double>("factor");
                         scaleFactor *= factor;
+                        break;
+                    }
+                case PostProcessing::Type::REWEIGHT:
+                    {
+                        cout<<"[INFO] Reweighting template '"<<tmp->getName()<<"'\n";
+                        applyReweighting(tmp,*it);
+                        tmp->makeProjectionControlPlot("afterReweight");
                         break;
                     }
                 default:
@@ -346,15 +392,27 @@ void TemplateBuilder::postProcessing()
             sumOfweightsBefore = sumOfWeightsAfter;
         }
         // normalize
-        cout<<"[INFO] Normalizing template '"<<tmp->getName()<<"' to 1\n";
-        double sumOfWeights = tmp->getTemplate()->GetSumOfWeights();
-        tmp->getTemplate()->Scale(1./sumOfWeights);
+        if(origin==Template::Origin::FILES)
+        {
+            cout<<"[INFO] Normalizing template '"<<tmp->getName()<<"' to 1\n";
+            double sumOfWeights = tmp->getTemplate()->GetSumOfWeights();
+            tmp->getTemplate()->Scale(1./sumOfWeights);
+            for(unsigned int axis=0;axis<tmp->numberOfDimensions();axis++)
+            {
+                tmp->getRaw1DTemplate(axis)->Scale(1./sumOfWeights);
+            }
+        }
         //double scaleFactor = tmp->getRescaling();
         if(scaleFactor!=1.)
         {
-            tmp->getTemplate()->Scale(scaleFactor);
             cout<<"[INFO] Rescaling template '"<<tmp->getName()<<"' with factor "<<scaleFactor<<"\n";
+            tmp->getTemplate()->Scale(scaleFactor);
+            for(unsigned int axis=0;axis<tmp->numberOfDimensions();axis++)
+            {
+                tmp->getRaw1DTemplate(axis)->Scale(scaleFactor);
+            }
         }
+        tmp->makeProjectionControlPlot("afterNormalization");
     }
 
 }
@@ -388,10 +446,11 @@ void TemplateBuilder::buildTemplatesFromTemplates()
             Template* inTmp = inTmpIt->second;
             if(!tmp->getTemplate())
             {
-                cout<<"[INFO] + ("<<factor<<") x "<<inTmp->getName()<<"\n";
+                cout<<"[INFO]   + ("<<factor<<") x "<<inTmp->getName()<<"\n";
                 tmp->setTemplate(inTmp->getTemplate());
                 tmp->getTemplate()->Scale(factor);
                 tmp->setWidths(inTmp->getWidths());
+                tmp->setRaw1DTemplates(inTmp->getRaw1DTemplates());
                 vector<string> vars;
                 for(unsigned int v=0;v<inTmp->numberOfDimensions();v++)
                 {
@@ -402,7 +461,7 @@ void TemplateBuilder::buildTemplatesFromTemplates()
             else
             {
                 // TODO: take the averaged width for each bin instead of the width of the first template
-                cout<<"[INFO] + ("<<factor<<") x "<<inTmp->getName()<<"\n";
+                cout<<"[INFO]   + ("<<factor<<") x "<<inTmp->getName()<<"\n";
                 // FIXME: check this for N dimensions
                 //int nbinsx1 = tmp->getTemplate()->GetNbinsX();
                 //int nbinsy1 = tmp->getTemplate()->GetNbinsY();
@@ -426,244 +485,310 @@ void TemplateBuilder::buildTemplatesFromTemplates()
                 //    throw runtime_error(error.str());
                 //}
                 tmp->getTemplate()->Add(inTmp->getTemplate(), factor);
+                for(unsigned int axis=0;axis<inTmp->numberOfDimensions();axis++)
+                {
+                    tmp->getRaw1DTemplate(axis)->Add(inTmp->getRaw1DTemplate(axis), factor);
+                }
             }
         }
     }
 
 
     /// postprocessing
-    tmpIt = m_templates.begin();
-    tmpItE = m_templates.end();
-    for(;tmpIt!=tmpItE;++tmpIt)
-    {
-        Template* tmp = tmpIt->second;
-        if(tmp->getOrigin()!=Template::Origin::TEMPLATES) continue;
+    //tmpIt = m_templates.begin();
+    //tmpItE = m_templates.end();
+    //for(;tmpIt!=tmpItE;++tmpIt)
+    //{
+    //    Template* tmp = tmpIt->second;
+    //    if(tmp->getOrigin()!=Template::Origin::TEMPLATES) continue;
 
-        double sumOfweightsBefore = tmp->getTemplate()->GetSumOfWeights();
-        double scaleFactor = 1.;
+    //    double sumOfweightsBefore = tmp->getTemplate()->GetSumOfWeights();
+    //    double scaleFactor = 1.;
 
-        vector<PostProcessing>::iterator it = tmp->postProcessingBegin();
-        vector<PostProcessing>::iterator itE = tmp->postProcessingEnd();
-        for(;it!=itE;++it)
-        {
-            switch(it->type())
-            {
-                case PostProcessing::Type::SMOOTH:
-                    {
-                        string kernel = "";
-                        it->getParameter("kernel", kernel);
-                        if(kernel=="k5b")
-                        {
-                            if(tmp->numberOfDimensions()!=2)
-                            {
-                                stringstream error;
-                                error << "TemplateBuilder::postProcessing(): ('"<<tmp->getName()<<"') Can only apply k5b smoothing for 2D templates\n";
-                                throw runtime_error(error.str());
-                            }
-                            cout<<"[INFO] Smoothing template '"<<tmp->getName()<<"' with k5b kernel\n";
-                            tmp->getTemplate()->Smooth(1, "k5b");
-                        }
-                        else if(kernel=="adaptive")
-                        {
-                            cout<<"[INFO] Smoothing template '"<<tmp->getName()<<"' with variable Gaussian kernel\n";
-                            // First derive adaptive binning if not already done previously
-                            // This is needed to define kernel widths
-                            if(tmp->getBinningType()!=Template::BinningType::ADAPTIVE)
-                            {
-                                vector< pair<double,double> > minmax = tmp->getMinMax();
-                                BinTree bintree(minmax, tmp->entries(), tmp->weights());
-                                int entriesPerBin = 200;
-                                it->getParameter("entriesperbin", entriesPerBin);
-                                bintree.setMinLeafEntries(entriesPerBin);
-                                cout<< "[INFO]   First deriving "<<tmp->numberOfDimensions()<<"D adaptive binning\n";
-                                bintree.build();
-                                cout<<"[INFO]   Number of bins = "<<bintree.getNLeaves()<<"\n";
-                                cout<<"[INFO]   Smallest bin widths: wx="<<bintree.getMinBinWidth(0)<<", wy="<<bintree.getMinBinWidth(1);
-                                if(tmp->numberOfDimensions()==3)
-                                {
-                                    cout<<", wz="<<bintree.getMinBinWidth(2)<<"\n";
-                                }
-                                else
-                                {
-                                    cout<<"\n";
-                                }
-                                TH1* widthTemplate = (TH1*)tmp->getTemplate()->Clone("widthTemplate");
-                                cout<< "[INFO]   Computing width maps from adaptive binning\n";
-                                vector<TH1*> widths = bintree.fillWidths(widthTemplate);
-                                tmp->setWidths(widths);
-                                widthTemplate->Delete();
-                                cout<< "[INFO]   Applying smoothing based on the width map\n";
-                            }
-                            GaussKernelSmoother smoother(tmp->numberOfDimensions());
-                            smoother.setWidths(tmp->getWidths());
-                            TH1* histoSmooth = smoother.smooth(tmp->getTemplate());
-                            tmp->setTemplate(histoSmooth);
-                        }
-                        else
-                        {
-                            stringstream error;
-                            error << "TemplateBuilder::postProcessing(): ('"<<tmp->getName()<<"') Unknown smoothing kernel '"<<kernel<<"'\n";
-                            throw runtime_error(error.str());
-                        }
-                        break;
-                    }
-                case PostProcessing::Type::MIRROR:
-                    {
-                        bool antiMirror = false;
-                        it->getParameter("antisymmetric", antiMirror);
-                        int axis = 1;
-                        it->getParameter("axis", axis);
-                        if((unsigned int)axis>=tmp->numberOfDimensions())
-                        {
-                            stringstream error;
-                            error << "TemplateBuilder::postProcessing(): Mirroring "<<tmp->numberOfDimensions()<<"D template '"<<tmp->getName()<<"' along axis "<<axis<<" is not possible (axis numbering starts at 0)\n";
-                            throw runtime_error(error.str());
-                        }
-                        cout<<"[INFO] "<<(antiMirror ? "Anti-mirroring" : "Mirroring")<<" template '"<<tmp->getName()<<"' along axis "<<axis<<"\n";
-                        if(tmp->numberOfDimensions()==2)
-                        {
-                            TH2F* histo = dynamic_cast<TH2F*>(tmp->getTemplate());
-                            if(axis==0)
-                            {
-                                for (int binx=0;binx<histo->GetNbinsX()/2; binx++)
-                                {
-                                    for (int biny=0;biny<histo->GetNbinsY(); biny++)
-                                    {
-                                        double avr = (antiMirror ? histo->GetBinContent(binx+1,biny+1) - histo->GetBinContent(histo->GetNbinsX()-binx,biny+1) : histo->GetBinContent(binx+1,biny+1) + histo->GetBinContent(histo->GetNbinsX()-binx,biny+1));
-                                        histo->SetBinContent(binx+1, biny+1, avr/2.);
-                                        histo->SetBinContent(histo->GetNbinsX()-binx, biny+1, (antiMirror ? -avr/2. : avr/2.));
-                                    } 
-                                }
-                            }
-                            else if(axis==1)
-                            {
-                                for (int binx=0;binx<histo->GetNbinsX(); binx++)
-                                {
-                                    for (int biny=0;biny<histo->GetNbinsY()/2; biny++)
-                                    {
-                                        double avr = (antiMirror ? histo->GetBinContent(binx+1,biny+1) - histo->GetBinContent(binx+1,histo->GetNbinsY()-biny) : histo->GetBinContent(binx+1,biny+1) + histo->GetBinContent(binx+1,histo->GetNbinsY()-biny));
-                                        histo->SetBinContent(binx+1, biny+1, avr/2.);
-                                        histo->SetBinContent(binx+1, histo->GetNbinsY()-biny, (antiMirror ? -avr/2. : avr/2.));
-                                    } 
-                                }
-                            }
-                        }
-                        else if(tmp->numberOfDimensions()==3)
-                        {
-                            TH3F* histo = dynamic_cast<TH3F*>(tmp->getTemplate());
-                            if(axis==0)
-                            {
-                                for (int binx=0;binx<histo->GetNbinsX()/2; binx++)
-                                {
-                                    for (int biny=0;biny<histo->GetNbinsY(); biny++)
-                                    {
-                                        for (int binz=0;binz<histo->GetNbinsZ(); binz++)
-                                        {
-                                            double avr = (antiMirror ? histo->GetBinContent(binx+1,biny+1,binz+1) - histo->GetBinContent(histo->GetNbinsX()-binx,biny+1,binz+1) : histo->GetBinContent(binx+1,biny+1,binz+1) + histo->GetBinContent(histo->GetNbinsX()-binx,biny+1,binz+1));
-                                            histo->SetBinContent(binx+1, biny+1, binz+1, avr/2.);
-                                            histo->SetBinContent(histo->GetNbinsX()-binx, biny+1, biny+1, (antiMirror ? -avr/2. : avr/2.));
-                                        }
-                                    } 
-                                }
-                            }
-                            else if(axis==1)
-                            {
-                                for (int binx=0;binx<histo->GetNbinsX(); binx++)
-                                {
-                                    for (int biny=0;biny<histo->GetNbinsY()/2; biny++)
-                                    {
-                                        for (int binz=0;binz<histo->GetNbinsZ(); binz++)
-                                        {
+    //    vector<PostProcessing>::iterator it = tmp->postProcessingBegin();
+    //    vector<PostProcessing>::iterator itE = tmp->postProcessingEnd();
+    //    for(;it!=itE;++it)
+    //    {
+    //        switch(it->type())
+    //        {
+    //            case PostProcessing::Type::SMOOTH:
+    //                {
+    //                    string kernel = "";
+    //                    it->getParameter("kernel", kernel);
+    //                    if(kernel=="k5b")
+    //                    {
+    //                        if(tmp->numberOfDimensions()!=2)
+    //                        {
+    //                            stringstream error;
+    //                            error << "TemplateBuilder::postProcessing(): ('"<<tmp->getName()<<"') Can only apply k5b smoothing for 2D templates\n";
+    //                            throw runtime_error(error.str());
+    //                        }
+    //                        cout<<"[INFO] Smoothing template '"<<tmp->getName()<<"' with k5b kernel\n";
+    //                        tmp->getTemplate()->Smooth(1, "k5b");
+    //                    }
+    //                    else if(kernel=="adaptive")
+    //                    {
+    //                        cout<<"[INFO] Smoothing template '"<<tmp->getName()<<"' with variable Gaussian kernel\n";
+    //                        // First derive adaptive binning if not already done previously
+    //                        // This is needed to define kernel widths
+    //                        if(tmp->getBinningType()!=Template::BinningType::ADAPTIVE)
+    //                        {
+    //                            vector< pair<double,double> > minmax = tmp->getMinMax();
+    //                            BinTree bintree(minmax, tmp->entries(), tmp->weights());
+    //                            int entriesPerBin = 200;
+    //                            it->getParameter("entriesperbin", entriesPerBin);
+    //                            bintree.setMinLeafEntries(entriesPerBin);
+    //                            cout<< "[INFO]   First deriving "<<tmp->numberOfDimensions()<<"D adaptive binning\n";
+    //                            bintree.build();
+    //                            cout<<"[INFO]   Number of bins = "<<bintree.getNLeaves()<<"\n";
+    //                            cout<<"[INFO]   Smallest bin widths: wx="<<bintree.getMinBinWidth(0)<<", wy="<<bintree.getMinBinWidth(1);
+    //                            if(tmp->numberOfDimensions()==3)
+    //                            {
+    //                                cout<<", wz="<<bintree.getMinBinWidth(2)<<"\n";
+    //                            }
+    //                            else
+    //                            {
+    //                                cout<<"\n";
+    //                            }
+    //                            TH1* widthTemplate = (TH1*)tmp->getTemplate()->Clone("widthTemplate");
+    //                            cout<< "[INFO]   Computing width maps from adaptive binning\n";
+    //                            vector<TH1*> widths = bintree.fillWidths(widthTemplate);
+    //                            tmp->setWidths(widths);
+    //                            widthTemplate->Delete();
+    //                            cout<< "[INFO]   Applying smoothing based on the width map\n";
+    //                        }
+    //                        GaussKernelSmoother smoother(tmp->numberOfDimensions());
+    //                        smoother.setWidths(tmp->getWidths());
+    //                        TH1* histoSmooth = smoother.smooth(tmp->getTemplate());
+    //                        tmp->setTemplate(histoSmooth);
+    //                    }
+    //                    else
+    //                    {
+    //                        stringstream error;
+    //                        error << "TemplateBuilder::postProcessing(): ('"<<tmp->getName()<<"') Unknown smoothing kernel '"<<kernel<<"'\n";
+    //                        throw runtime_error(error.str());
+    //                    }
+    //                    break;
+    //                }
+    //            case PostProcessing::Type::MIRROR:
+    //                {
+    //                    bool antiMirror = false;
+    //                    it->getParameter("antisymmetric", antiMirror);
+    //                    int axis = 1;
+    //                    it->getParameter("axis", axis);
+    //                    if((unsigned int)axis>=tmp->numberOfDimensions())
+    //                    {
+    //                        stringstream error;
+    //                        error << "TemplateBuilder::postProcessing(): Mirroring "<<tmp->numberOfDimensions()<<"D template '"<<tmp->getName()<<"' along axis "<<axis<<" is not possible (axis numbering starts at 0)\n";
+    //                        throw runtime_error(error.str());
+    //                    }
+    //                    cout<<"[INFO] "<<(antiMirror ? "Anti-mirroring" : "Mirroring")<<" template '"<<tmp->getName()<<"' along axis "<<axis<<"\n";
+    //                    if(tmp->numberOfDimensions()==2)
+    //                    {
+    //                        TH2F* histo = dynamic_cast<TH2F*>(tmp->getTemplate());
+    //                        if(axis==0)
+    //                        {
+    //                            for (int binx=0;binx<histo->GetNbinsX()/2; binx++)
+    //                            {
+    //                                for (int biny=0;biny<histo->GetNbinsY(); biny++)
+    //                                {
+    //                                    double avr = (antiMirror ? histo->GetBinContent(binx+1,biny+1) - histo->GetBinContent(histo->GetNbinsX()-binx,biny+1) : histo->GetBinContent(binx+1,biny+1) + histo->GetBinContent(histo->GetNbinsX()-binx,biny+1));
+    //                                    histo->SetBinContent(binx+1, biny+1, avr/2.);
+    //                                    histo->SetBinContent(histo->GetNbinsX()-binx, biny+1, (antiMirror ? -avr/2. : avr/2.));
+    //                                } 
+    //                            }
+    //                        }
+    //                        else if(axis==1)
+    //                        {
+    //                            for (int binx=0;binx<histo->GetNbinsX(); binx++)
+    //                            {
+    //                                for (int biny=0;biny<histo->GetNbinsY()/2; biny++)
+    //                                {
+    //                                    double avr = (antiMirror ? histo->GetBinContent(binx+1,biny+1) - histo->GetBinContent(binx+1,histo->GetNbinsY()-biny) : histo->GetBinContent(binx+1,biny+1) + histo->GetBinContent(binx+1,histo->GetNbinsY()-biny));
+    //                                    histo->SetBinContent(binx+1, biny+1, avr/2.);
+    //                                    histo->SetBinContent(binx+1, histo->GetNbinsY()-biny, (antiMirror ? -avr/2. : avr/2.));
+    //                                } 
+    //                            }
+    //                        }
+    //                    }
+    //                    else if(tmp->numberOfDimensions()==3)
+    //                    {
+    //                        TH3F* histo = dynamic_cast<TH3F*>(tmp->getTemplate());
+    //                        if(axis==0)
+    //                        {
+    //                            for (int binx=0;binx<histo->GetNbinsX()/2; binx++)
+    //                            {
+    //                                for (int biny=0;biny<histo->GetNbinsY(); biny++)
+    //                                {
+    //                                    for (int binz=0;binz<histo->GetNbinsZ(); binz++)
+    //                                    {
+    //                                        double avr = (antiMirror ? histo->GetBinContent(binx+1,biny+1,binz+1) - histo->GetBinContent(histo->GetNbinsX()-binx,biny+1,binz+1) : histo->GetBinContent(binx+1,biny+1,binz+1) + histo->GetBinContent(histo->GetNbinsX()-binx,biny+1,binz+1));
+    //                                        histo->SetBinContent(binx+1, biny+1, binz+1, avr/2.);
+    //                                        histo->SetBinContent(histo->GetNbinsX()-binx, biny+1, biny+1, (antiMirror ? -avr/2. : avr/2.));
+    //                                    }
+    //                                } 
+    //                            }
+    //                        }
+    //                        else if(axis==1)
+    //                        {
+    //                            for (int binx=0;binx<histo->GetNbinsX(); binx++)
+    //                            {
+    //                                for (int biny=0;biny<histo->GetNbinsY()/2; biny++)
+    //                                {
+    //                                    for (int binz=0;binz<histo->GetNbinsZ(); binz++)
+    //                                    {
 
-                                            double avr = (antiMirror ? histo->GetBinContent(binx+1,biny+1,binz+1) - histo->GetBinContent(binx+1,histo->GetNbinsY()-biny,binz+1) : histo->GetBinContent(binx+1,biny+1,binz+1) + histo->GetBinContent(binx+1,histo->GetNbinsY()-biny,binz+1));
-                                            histo->SetBinContent(binx+1, biny+1,binz+1, avr/2.);
-                                            histo->SetBinContent(binx+1, histo->GetNbinsY()-biny,binz+1, (antiMirror ? -avr/2. : avr/2.));
-                                        } 
-                                    }
-                                }
-                            }
-                            else if(axis==2)
-                            {
-                                for (int binx=0;binx<histo->GetNbinsX(); binx++)
-                                {
-                                    for (int biny=0;biny<histo->GetNbinsY(); biny++)
-                                    {
-                                        for (int binz=0;binz<histo->GetNbinsZ()/2; binz++)
-                                        {
-                                            double avr = (antiMirror ? histo->GetBinContent(binx+1,biny+1,binz+1) - histo->GetBinContent(binx+1,biny+1,histo->GetNbinsZ()-binz) : histo->GetBinContent(binx+1,biny+1,binz+1) + histo->GetBinContent(binx+1,biny+1,histo->GetNbinsZ()-binz));
-                                            histo->SetBinContent(binx+1, biny+1,binz+1, avr/2.);
-                                            histo->SetBinContent(binx+1,biny+1, histo->GetNbinsZ()-binz, (antiMirror ? -avr/2. : avr/2.));
-                                        } 
-                                    }
-                                }
-                            }
-                        }
-                        break;
-                    }
-                case PostProcessing::Type::FLOOR:
-                    {
-                        cout<<"[INFO] Flooring template '"<<tmp->getName()<<"'\n";
-                        if(tmp->getTemplate()->GetMinimum()>0.)
-                        {
-                            cout<<"[INFO]   No zero bin. Flooring is not needed.\n";
-                            break;
-                        }
-                        if(tmp->numberOfDimensions()==2)
-                        {
-                            TH2F* histo = dynamic_cast<TH2F*>(tmp->getTemplate());
-                            double floorN = ((histo->Integral())/(histo->GetNbinsX()*histo->GetNbinsY()))*(0.001/100.);
-                            for(int binx = 1; binx <= histo->GetNbinsX(); binx++)
-                            {
-                                for(int biny = 1; biny <= histo->GetNbinsY(); biny++)
-                                {
-                                    double orig = histo->GetBinContent(binx,biny);
-                                    histo->SetBinContent(binx,biny,(orig+floorN));
-                                }
-                            }
-                        }
-                        else if(tmp->numberOfDimensions()==3)
-                        {
-                            TH3F* histo = dynamic_cast<TH3F*>(tmp->getTemplate());
-                            double floorN = ((histo->Integral())/(histo->GetNbinsX()*histo->GetNbinsY()*histo->GetNbinsZ()))*(0.001/100.);
-                            for(int binx = 1; binx <= histo->GetNbinsX(); binx++)
-                            {
-                                for(int biny = 1; biny <= histo->GetNbinsY(); biny++)
-                                {
-                                    for(int binz = 1; binz <= histo->GetNbinsZ(); binz++)
-                                    {
-                                        double orig = histo->GetBinContent(binx,biny,binz);
-                                        histo->SetBinContent(binx,biny,binz,(orig+floorN));
-                                    }
-                                }
-                            }
-                        }
-                        break;
-                    }
-                case PostProcessing::Type::RESCALE:
-                    {
-                        double factor = 1.;
-                        it->getParameter("factor", factor);
-                        scaleFactor *= factor;
-                        break;
-                    }
-                default:
-                    break;
-            }
-            double sumOfWeightsAfter = tmp->getTemplate()->GetSumOfWeights();
-            cout<<"[INFO]   Sum of weights after/before = "<<sumOfWeightsAfter<<" / "<<sumOfweightsBefore<<" = "<<sumOfWeightsAfter/sumOfweightsBefore<<"\n";
-            sumOfweightsBefore = sumOfWeightsAfter;
-        }
-        // normalize
-        //cout<<"[INFO] Normalizing template '"<<tmp->getName()<<"' to 1\n";
-        //double sumOfWeights = tmp->getTemplate()->GetSumOfWeights();
-        //tmp->getTemplate()->Scale(1./sumOfWeights);
-        //double scaleFactor = tmp->getRescaling();
-        if(scaleFactor!=1.)
-        {
-            tmp->getTemplate()->Scale(scaleFactor);
-            cout<<"[INFO] Rescaling template '"<<tmp->getName()<<"' with factor "<<scaleFactor<<"\n";
-        }
-    }
+    //                                        double avr = (antiMirror ? histo->GetBinContent(binx+1,biny+1,binz+1) - histo->GetBinContent(binx+1,histo->GetNbinsY()-biny,binz+1) : histo->GetBinContent(binx+1,biny+1,binz+1) + histo->GetBinContent(binx+1,histo->GetNbinsY()-biny,binz+1));
+    //                                        histo->SetBinContent(binx+1, biny+1,binz+1, avr/2.);
+    //                                        histo->SetBinContent(binx+1, histo->GetNbinsY()-biny,binz+1, (antiMirror ? -avr/2. : avr/2.));
+    //                                    } 
+    //                                }
+    //                            }
+    //                        }
+    //                        else if(axis==2)
+    //                        {
+    //                            for (int binx=0;binx<histo->GetNbinsX(); binx++)
+    //                            {
+    //                                for (int biny=0;biny<histo->GetNbinsY(); biny++)
+    //                                {
+    //                                    for (int binz=0;binz<histo->GetNbinsZ()/2; binz++)
+    //                                    {
+    //                                        double avr = (antiMirror ? histo->GetBinContent(binx+1,biny+1,binz+1) - histo->GetBinContent(binx+1,biny+1,histo->GetNbinsZ()-binz) : histo->GetBinContent(binx+1,biny+1,binz+1) + histo->GetBinContent(binx+1,biny+1,histo->GetNbinsZ()-binz));
+    //                                        histo->SetBinContent(binx+1, biny+1,binz+1, avr/2.);
+    //                                        histo->SetBinContent(binx+1,biny+1, histo->GetNbinsZ()-binz, (antiMirror ? -avr/2. : avr/2.));
+    //                                    } 
+    //                                }
+    //                            }
+    //                        }
+    //                    }
+    //                    break;
+    //                }
+    //            case PostProcessing::Type::FLOOR:
+    //                {
+    //                    cout<<"[INFO] Flooring template '"<<tmp->getName()<<"'\n";
+    //                    if(tmp->getTemplate()->GetMinimum()>0.)
+    //                    {
+    //                        cout<<"[INFO]   No zero bin. Flooring is not needed.\n";
+    //                        break;
+    //                    }
+    //                    if(tmp->numberOfDimensions()==2)
+    //                    {
+    //                        TH2F* histo = dynamic_cast<TH2F*>(tmp->getTemplate());
+    //                        double floorN = ((histo->Integral())/(histo->GetNbinsX()*histo->GetNbinsY()))*(0.001/100.);
+    //                        for(int binx = 1; binx <= histo->GetNbinsX(); binx++)
+    //                        {
+    //                            for(int biny = 1; biny <= histo->GetNbinsY(); biny++)
+    //                            {
+    //                                double orig = histo->GetBinContent(binx,biny);
+    //                                histo->SetBinContent(binx,biny,(orig+floorN));
+    //                            }
+    //                        }
+    //                    }
+    //                    else if(tmp->numberOfDimensions()==3)
+    //                    {
+    //                        TH3F* histo = dynamic_cast<TH3F*>(tmp->getTemplate());
+    //                        double floorN = ((histo->Integral())/(histo->GetNbinsX()*histo->GetNbinsY()*histo->GetNbinsZ()))*(0.001/100.);
+    //                        for(int binx = 1; binx <= histo->GetNbinsX(); binx++)
+    //                        {
+    //                            for(int biny = 1; biny <= histo->GetNbinsY(); biny++)
+    //                            {
+    //                                for(int binz = 1; binz <= histo->GetNbinsZ(); binz++)
+    //                                {
+    //                                    double orig = histo->GetBinContent(binx,biny,binz);
+    //                                    histo->SetBinContent(binx,biny,binz,(orig+floorN));
+    //                                }
+    //                            }
+    //                        }
+    //                    }
+    //                    break;
+    //                }
+    //            case PostProcessing::Type::RESCALE:
+    //                {
+    //                    double factor = 1.;
+    //                    it->getParameter("factor", factor);
+    //                    scaleFactor *= factor;
+    //                    break;
+    //                }
+    //            default:
+    //                break;
+    //        }
+    //        double sumOfWeightsAfter = tmp->getTemplate()->GetSumOfWeights();
+    //        cout<<"[INFO]   Sum of weights after/before = "<<sumOfWeightsAfter<<" / "<<sumOfweightsBefore<<" = "<<sumOfWeightsAfter/sumOfweightsBefore<<"\n";
+    //        sumOfweightsBefore = sumOfWeightsAfter;
+    //    }
+    //    // normalize
+    //    //cout<<"[INFO] Normalizing template '"<<tmp->getName()<<"' to 1\n";
+    //    //double sumOfWeights = tmp->getTemplate()->GetSumOfWeights();
+    //    //tmp->getTemplate()->Scale(1./sumOfWeights);
+    //    //double scaleFactor = tmp->getRescaling();
+    //    if(scaleFactor!=1.)
+    //    {
+    //        tmp->getTemplate()->Scale(scaleFactor);
+    //        cout<<"[INFO] Rescaling template '"<<tmp->getName()<<"' with factor "<<scaleFactor<<"\n";
+    //    }
+    //}
 }
 
 
+/*****************************************************************/
+void TemplateBuilder::applyReweighting(Template* tmp, const PostProcessing& pp)
+/*****************************************************************/
+{
+    vector<unsigned int> axes = pp.getParameter< vector<unsigned int> >("axes");
+    vector< vector<double> > rebinning = pp.getParameter< vector< vector<double> > >("rebinning");
+    vector<unsigned int>::const_iterator it = axes.begin();
+    vector<unsigned int>::const_iterator itE = axes.end();
+    for(;it!=itE;++it)
+    {
+        unsigned int axis = *it;
+        cout<<"[INFO]   Reweighting along axis "<<axis<<"\n";
+        TH1D* refHisto = tmp->getRaw1DTemplate(axis);
+        TH1D* projTmp = tmp->getProjected1DTemplate(axis);
+        // rebin
+        bool rebin = false;
+        if(rebinning.size()>axis && rebinning[axis].size()>2)
+        {
+            rebin = true;
+            unsigned int nbins = rebinning[axis].size()-1;
+            double* bins = new double[nbins+1];
+            for(unsigned int i=0;i<nbins+1;i++)
+            {
+                bins[i] = rebinning[axis][i];
+            }
+            TH1D* refHistoRebin = dynamic_cast<TH1D*>(refHisto->Rebin(nbins, "refRebinHisto", bins));
+            // rescale according to bin widths
+            double oldBinWidth = refHisto->GetXaxis()->GetBinWidth(1);
+            for(int b=1;b<refHistoRebin->GetNbinsX()+1;b++)
+            {
+                double content     = refHistoRebin->GetBinContent(b);
+                double error       = refHistoRebin->GetBinError(b);
+                double newBinWidth = refHistoRebin->GetXaxis()->GetBinWidth(b);
+                refHistoRebin->SetBinContent(b,content/newBinWidth*oldBinWidth);
+                refHistoRebin->SetBinError(b,error/newBinWidth*oldBinWidth);
+            }
+            TGraph* refGraph = new TGraph(refHistoRebin);
+            TH1D* refHistoSmooth = dynamic_cast<TH1D*>(refHisto->Clone("refHisto"));
+            for(int b=1;b<refHisto->GetNbinsX()+1;b++)
+            {
+                double x = refHisto->GetXaxis()->GetBinCenter(b);
+                double content = max(0.,refGraph->Eval(x, 0, "S"));
+                refHistoSmooth->SetBinContent(b, content);
+            }
+            refHisto = refHistoSmooth;
+            delete refHistoRebin;
+            delete refGraph;
+        }
+        unsigned int nbins = refHisto->GetNbinsX();
+        for(unsigned int b=1;b<=nbins;b++)
+        {
+            double ref = refHisto->GetBinContent(b);
+            double old = projTmp->GetBinContent(b);
+            double weight = (old!=0. ? ref/old : 1.);
+            tmp->reweight1D(axis, b, weight);
+        }
+        if(rebin)
+        {
+            delete refHisto;
+        }
+    }
+}

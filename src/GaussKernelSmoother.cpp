@@ -259,6 +259,9 @@ pair<double,double> GaussKernelSmoother::smoothed2DValueError(const TH1* histo, 
     binx = m_widths[1]->GetXaxis()->FindBin(x0[0]);
     biny = m_widths[1]->GetYaxis()->FindBin(x0[1]);
     widthy = m_widths[1]->GetBinContent(binx, biny);
+    double maxWidth = max(widthx, widthy);
+    double widthRatiox = widthx/maxWidth;
+    double widthRatioy = widthy/maxWidth;
 
     binx = histo->GetXaxis()->FindBin(x0[0]);
     biny = histo->GetYaxis()->FindBin(x0[1]);
@@ -328,7 +331,7 @@ pair<double,double> GaussKernelSmoother::smoothed2DValueError(const TH1* histo, 
             }
             // FIXME: this assumes that all bins have the same size
             int dby = abs(by-biny);
-            double dbr = sqrt( (double)(dbx*dbx+dby*dby) );
+            double dbr = sqrt( (double)(dbx*dbx)*widthRatiox+(double)(dby*dby)*widthRatioy);
             double wi = wi1*weightsY[dby];
             wi *= 1./(dbr+1.);
             //////////////////////////
@@ -383,6 +386,10 @@ pair<double,double> GaussKernelSmoother::smoothed3DValueError(const TH1* histo, 
     biny = m_widths[2]->GetYaxis()->FindBin(x0[1]);
     binz = m_widths[2]->GetZaxis()->FindBin(x0[2]);
     widthz = m_widths[2]->GetBinContent(binx, biny, binz);
+    double maxWidth = max(max(widthx, widthy),widthz);
+    double widthRatiox = widthx/maxWidth;
+    double widthRatioy = widthy/maxWidth;
+    double widthRatioz = widthz/maxWidth;
 
     histo->GetXaxis()->FindBin(x0[0]);
     histo->GetYaxis()->FindBin(x0[1]);
@@ -481,7 +488,8 @@ pair<double,double> GaussKernelSmoother::smoothed3DValueError(const TH1* histo, 
                 }
                 // FIXME: this assumes that all bins have the same size
                 int dbz = abs(bz-binz);
-                double dbr = sqrt( (double)(dbx*dbx+dby*dby+dbz*dbz) );
+                //double dbr = sqrt( (double)(dbx*dbx+dby*dby+dbz*dbz) );
+                double dbr = sqrt( (double)(dbx*dbx)*widthRatiox+(double)(dby*dby)*widthRatioy+(double)(dbz*dbz)*widthRatioz);
                 double wi = wi2*weightsZ[dbz];
                 wi *= 1./((dbr+1.)*(dbr+1.));
                 //////////////////////////////////////////////////////////////

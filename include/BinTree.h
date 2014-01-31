@@ -74,6 +74,7 @@ class BinTree
         std::vector<BinLeaf*> getLeaves();
         std::vector<BinTree*> getTerminalNodes();
         std::vector<BinLeaf*> findNeighborLeaves(BinLeaf* leaf);
+        std::vector<BinTree*> getSons() {return m_treeSons;}
         unsigned int getNLeaves();
         double getMinBinWidth(unsigned int axis);
         double getMinEntries();
@@ -94,6 +95,7 @@ class BinTree
         bool vetoSplit(unsigned int axis){return m_vetoSplit[axis];}
 
     private:
+        std::pair<int,int> entriesIfSplit(double cut, unsigned int axis=0);
         void splitLeaf(double cut, unsigned int maxLeafIndex, unsigned int axis=0);
         void findBestSplit(BinTree*& bestNode, unsigned int& axis, double& gradient);
         void constrainSplit(int axis, double& cut, bool& veto);

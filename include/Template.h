@@ -21,13 +21,19 @@
 #define TEMPLATE_H
 
 #include <TH1.h>
+#include "TCanvas.h"
+
+#include <boost/any.hpp>
 
 #include <string>
+#include <sstream>
 #include <vector>
 #include <algorithm>
 #include <assert.h>
 #include <iostream>
 #include <map>
+#include <stdexcept>
+
 
 
 class PostProcessing
@@ -38,29 +44,40 @@ class PostProcessing
             SMOOTH = 0,
             MIRROR = 1,
             FLOOR = 2,
-            RESCALE = 3
+            RESCALE = 3,
+            REWEIGHT = 4
         };
         PostProcessing(Type type);
         ~PostProcessing();
 
         Type type() {return m_type;}
-        void addParameter(const std::string& par, const std::string& value);
-        void addParameter(const std::string& par, double value);
-        void addParameter(const std::string& par, int value);
-        void addParameter(const std::string& par, bool value);
+        template <class T> void addParameter(const std::string& par, const T& value)
+        {
+            m_parameters[par] = value;
+        }
 
-        void getParameter(const std::string& par, std::string& value);
-        void getParameter(const std::string& par, double& value);
-        void getParameter(const std::string& par, int& value);
-        void getParameter(const std::string& par, bool& value);
+        template <class T> T getParameter(const std::string& par) const
+        {
+            std::map<std::string, boost::any>::const_iterator it = m_parameters.find(par);
+            if(it==m_parameters.end())
+            {
+                std::stringstream error;
+                error <<"PostProcessing::getParameter(): Trying to retrieve unknown parameter '"<<par<<"'\n";
+                throw std::runtime_error(error.str());
+            }
+            boost::any value = it->second;
+            if(value.type()!=typeid(T))
+            {
+                std::stringstream error;
+                error <<"PostProcessing::getParameter(): Trying to retrieve parameter '"<<par<<"' with the wrong type\n";
+                throw std::runtime_error(error.str());
+            }
+            return boost::any_cast<T>(value);
+        }
 
     private:
         Type m_type;
-        std::map<std::string, std::string> m_stringParameters;
-        std::map<std::string, double> m_floatParameters;
-        std::map<std::string, int> m_intParameters;
-        std::map<std::string, bool> m_boolParameters;
-
+        std::map<std::string, boost::any> m_parameters;
 };
 
 class Template
@@ -95,6 +112,9 @@ class Template
         BinningType getBinningType() const {return m_binningType;}
         unsigned int getEntriesPerBin() const {return m_entriesPerBin;}
         TH1* getTemplate() const {return m_template;}
+        TH1D* getRaw1DTemplate(unsigned int axis=0) const {return m_raw1DTemplates[axis];}
+        const std::vector<TH1D*>& getRaw1DTemplates() const {return m_raw1DTemplates;}
+        TH1D* getProjected1DTemplate(unsigned int axis=0);
         const std::vector< std::pair<double,double> >& getMinMax() const {return m_minmax;} 
         const std::vector<TH1*>& getWidths() const {return m_widths;}
         TH1* getWidth(int axis=0) const {return m_widths[axis];}
@@ -110,6 +130,8 @@ class Template
         const std::vector<double>& weights() const {return m_weights;}
         std::vector<PostProcessing>::iterator postProcessingBegin() {return m_postProcessings.begin();}
         std::vector<PostProcessing>::iterator postProcessingEnd() {return m_postProcessings.end();}
+        std::vector<TCanvas*>::iterator controlPlotsBegin() {return m_controlPlots.begin();}
+        std::vector<TCanvas*>::iterator controlPlotsEnd() {return m_controlPlots.end();}
 
         // setters
         void setName(const std::string& name) {m_name = name;}
@@ -126,9 +148,14 @@ class Template
         void addPostProcessing(PostProcessing postProcess) {m_postProcessings.push_back(postProcess);}
         void createTemplate(const std::vector<unsigned int>& nbins, const std::vector< std::pair<double,double> >& minmax);
         void setTemplate(const TH1* histo);
+        void setRaw1DTemplates(const std::vector<TH1D*>& histo);
         void setWidths(const std::vector<TH1*>& width);
         void setRescaling(double scaleFactor) {m_scaleFactor = scaleFactor;}
         void store(const std::vector<double>& vs, double w);
+        void reweight1D(unsigned int axis, unsigned int bin, double weight);
+        // control plot methods
+        void makeProjectionControlPlot(const std::string& tag);
+        void addControlPlot(TCanvas* plot) {m_controlPlots.push_back(plot);}
 
 
     private:
@@ -143,6 +170,7 @@ class Template
         std::vector<std::string> m_variables;
         BinningType m_binningType;
         TH1* m_template;
+        std::vector<TH1D*> m_raw1DTemplates;
         std::vector< std::pair<double,double> > m_minmax;
         std::vector<TH1*> m_widths;
         unsigned int m_entriesPerBin;
@@ -150,6 +178,8 @@ class Template
         double m_scaleFactor;
         std::vector< std::vector<double> > m_entries;
         std::vector< double > m_weights;
+
+        std::vector<TCanvas*> m_controlPlots;
 
 };
 

@@ -162,13 +162,13 @@ void TemplateManager::loop()
                     double weight = weightForm->EvalInstance();
                     if(!std::isfinite(weight))
                     {
-                        std::cerr<<"[WARNING]   Inf or NaN weight\n";
+                        std::cerr<<"[WARN]   Inf or NaN weight\n";
                     }
                     sumOfWeights += weight;
                 }
                 if(sumOfWeights==0)
                 {
-                    std::cerr<<"[WARNING]   Sum of weights = 0\n";
+                    std::cerr<<"[WARN]   Sum of weights = 0\n";
                 }
                 //cout<<"Computing sum of weights: "<<nEntries<<"/"<<sumOfWeights<<"\n";
             }
@@ -194,7 +194,7 @@ void TemplateManager::loop()
                     double varValue = varForms[v]->EvalInstance();
                     if(!std::isfinite(varValue))
                     {
-                        std::cerr<<"[WARNING]   Inf or NaN variable\n";
+                        std::cerr<<"[WARN]   Inf or NaN variable\n";
                     }
                     point.push_back(varValue);
                 }
@@ -221,8 +221,9 @@ void TemplateManager::loop()
         }
     }
     m_templates.fillTemplates();
-    m_templates.postProcessing();
+    m_templates.postProcessing(Template::Origin::FILES);
     m_templates.buildTemplatesFromTemplates();
+    m_templates.postProcessing(Template::Origin::TEMPLATES);
     save();
 }
 
@@ -244,6 +245,20 @@ void TemplateManager::save()
         // TMP: fill kernel widths
         //tmp->getWidth(0)->Write();
         //tmp->getWidth(1)->Write();
+    }
+    // write control plots
+    m_outputFile->mkdir("controlPlots");
+    m_outputFile->cd("controlPlots");
+    tmpIt = m_templates.templateBegin();
+    for(;tmpIt!=tmpItE;++tmpIt)
+    {
+        Template* tmp = tmpIt->second;
+        vector<TCanvas*>::iterator itc = tmp->controlPlotsBegin(); 
+        vector<TCanvas*>::iterator itcE = tmp->controlPlotsEnd();
+        for(;itc!=itcE;++itc)
+        {
+            (*itc)->Write();
+        }
     }
 }
 

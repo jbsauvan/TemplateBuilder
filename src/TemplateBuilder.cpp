@@ -387,9 +387,12 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
                 default:
                     break;
             }
-            double sumOfWeightsAfter = tmp->getTemplate()->GetSumOfWeights();
-            cout<<"[INFO]   Sum of weights after/before = "<<sumOfWeightsAfter<<" / "<<sumOfweightsBefore<<" = "<<sumOfWeightsAfter/sumOfweightsBefore<<"\n";
-            sumOfweightsBefore = sumOfWeightsAfter;
+            if(it->type()!=PostProcessing::Type::RESCALE)
+            {
+                double sumOfWeightsAfter = tmp->getTemplate()->GetSumOfWeights();
+                cout<<"[INFO]   Sum of weights after/before = "<<sumOfWeightsAfter<<" / "<<sumOfweightsBefore<<" = "<<sumOfWeightsAfter/sumOfweightsBefore<<"\n";
+                sumOfweightsBefore = sumOfWeightsAfter;
+            }
         }
         // normalize
         if(origin==Template::Origin::FILES)
@@ -790,5 +793,6 @@ void TemplateBuilder::applyReweighting(Template* tmp, const PostProcessing& pp)
         {
             delete refHisto;
         }
+        delete projTmp;
     }
 }

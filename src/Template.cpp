@@ -121,11 +121,23 @@ TH1D* Template::getProjected1DTemplate(unsigned int axis)
         error << "Template::getProjected1DTemplate(): Projection requested on axis "<<axis<<" for "<<numberOfDimensions()<<"D template '"<<m_name<<"'\n";
         throw runtime_error(error.str());
     }
-    TAxis* ax = NULL;
-    if(axis==0)      ax = m_template->GetXaxis();
-    else if(axis==1) ax = m_template->GetYaxis();
-    else if(axis==2) ax = m_template->GetZaxis();
-    unsigned int nbins = ax->GetNbins();
+    unsigned int nbins1 = 0;
+    unsigned int nbins2 = 0;
+    if(axis==0)      
+    {
+        nbins1 = m_template->GetNbinsY();
+        nbins2 = m_template->GetNbinsZ();
+    }
+    else if(axis==1) 
+    {
+        nbins1 = m_template->GetNbinsX();
+        nbins2 = m_template->GetNbinsZ();
+    }
+    else if(axis==2) 
+    {
+        nbins1 = m_template->GetNbinsX();
+        nbins2 = m_template->GetNbinsY();
+    }
 
     stringstream projName;
     projName << m_template->GetName() << "_projFromTmp"<< axis;
@@ -134,15 +146,15 @@ TH1D* Template::getProjected1DTemplate(unsigned int axis)
     if(numberOfDimensions()==2)
     {
         TH2F* tmp = dynamic_cast<TH2F*>(m_template);
-        if(axis==0)      projectedTemplate = tmp->ProjectionX(projName.str().c_str(), 1, nbins, "e");
-        else if(axis==1) projectedTemplate = tmp->ProjectionY(projName.str().c_str(), 1, nbins, "e");
+        if(axis==0)      projectedTemplate = tmp->ProjectionX(projName.str().c_str(), 1, nbins1, "e");
+        else if(axis==1) projectedTemplate = tmp->ProjectionY(projName.str().c_str(), 1, nbins1, "e");
     }
     if(numberOfDimensions()==3)
     {
         TH3F* tmp = dynamic_cast<TH3F*>(m_template);
-        if(axis==0)      projectedTemplate = tmp->ProjectionX(projName.str().c_str(), 1, nbins, 1, nbins, "e");
-        else if(axis==1) projectedTemplate = tmp->ProjectionY(projName.str().c_str(), 1, nbins, 1, nbins, "e");
-        else if(axis==2) projectedTemplate = tmp->ProjectionZ(projName.str().c_str(), 1, nbins, 1, nbins, "e");
+        if(axis==0)      projectedTemplate = tmp->ProjectionX(projName.str().c_str(), 1, nbins1, 1, nbins2, "e");
+        else if(axis==1) projectedTemplate = tmp->ProjectionY(projName.str().c_str(), 1, nbins1, 1, nbins2, "e");
+        else if(axis==2) projectedTemplate = tmp->ProjectionZ(projName.str().c_str(), 1, nbins1, 1, nbins2, "e");
     }
 
     return projectedTemplate;
@@ -338,7 +350,8 @@ void Template::makeProjectionControlPlot(const string& tag)
         projName << "control_" << getName() << "_projAxis" << axis << "_" << tag << "_proj";
         TCanvas* c = new TCanvas(plotName.str().c_str(),plotName.str().c_str(), 700,700);
         TH1D* raw1D = dynamic_cast<TH1D*>(getRaw1DTemplate(axis)->Clone(rawName.str().c_str()));
-        TH1D* proj1D = dynamic_cast<TH1D*>(getProjected1DTemplate(axis)->Clone(projName.str().c_str()));
+        TH1D* proj1D = dynamic_cast<TH1D*>(getProjected1DTemplate(axis));
+        proj1D->SetName(projName.str().c_str());
         raw1D->SetLineColor(kRed);
         raw1D->SetLineWidth(2);
         proj1D->SetLineColor(kBlack);

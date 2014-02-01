@@ -1,7 +1,7 @@
 ********************************************
 **           TemplateBuilder              **
 **                                        **
-**       README version 20/01/14          **
+**       README version 01/02/14          **
 **                                        **
 ********************************************
 
@@ -18,7 +18,7 @@ The program needs ROOT in order to compile and run. So please make sure that ROO
 Compilation:
 > make
 
-Clean area:
+Clean area (if necessary):
 > make clean
 
 Run with:
@@ -41,24 +41,25 @@ Several objects/variables are defined, at different levels. Top level ones are:
 - templates     : a list of template definitions
 
 Then for each template in the list several variables can be defined:
-- name     : the name of the template (don't use the same name for several templates)
-- files    : the list of input tree files in the directory defined by 'inputDirectory'.
-- tree     : the name of the tree in the files
-- variables: template variables, 2 for 2D, 3 for 3D. The names correspond to those in the tree.
-- weight   : if events are weighted. This is the weight to be applied when filling templates. The name corresponds to the tree variable.
-- selection: to apply an event selection. The variables used in the formula should be in the tree.
-- assertion: to define an assertion. If it fails the program will stop.
-- binning  : the binning of the template
+- name          : the name of the template (don't use the same name for several templates)
+- files         : the list of input tree files in the directory defined by 'inputDirectory'.
+- tree          : the name of the tree in the files
+- variables     : template variables, 2 for 2D, 3 for 3D. The names correspond to those in the tree.
+- weight        : if events are weighted. This is the weight to be applied when filling templates. The name corresponds to the tree variable.
+- selection     : to apply an event selection. The variables used in the formula should be in the tree.
+- assertion     : to define an assertion. If it fails the program will stop.
+- binning       : the binning of the template
 - postprocessing: to modify the templates after it is filled. For instance smoothing, mirroring, etc. can be applied.
 
 
 2)-2- Binning definition
 ------------------------
 Two types of binning can be define:
-- fixed   : fixed size bins
-- adaptive: adaptive binning
+- fixed   : fixed size bins (standard ROOT binning)
+- adaptive: adaptive binning built with an iterative procedure based on the densities of events in the region of interest
+
 The fixed size bins are defined with the keyword 'bins', the value is a list [nbinsx, xmin, xmax, nbinsy, ymin, ymax], or [nbinsx, xmin, xmax, nbinsy, ymin, ymax, nbinsz, zmin, zmax] for 3D.
-For adaptive binning the 'bins' keyword is used to specify the underlying binning, and 'entriesperbin' specify the minimum number of events per bin (default is 200).
+For adaptive binning the 'bins' keyword is used to specify the underlying binning (constraining the adaptive bins), and 'entriesperbin' specify the minimum number of events per bin (default is 200) used in the iterative procedure.
 
 Example:
 "binning":{
@@ -74,6 +75,7 @@ A few postprocessing have been implemented for the moment:
 - mirror     : mirroring or anti-mirroring
 - floor      : flooring
 - rescale    : rescaling template
+- reweight   : reweigting template based on the 1D projections in order to match the raw 1D distributions. This is intended for residual corrections after the smoothing has been applied.
 
 The syntax to use is:
 "postprocessing":[
@@ -81,27 +83,47 @@ The syntax to use is:
 ]
 For each postprocessing parameters can be given with the form "key":value. The following parameters are possible:
 - smooth:
- -> kernel        : "k5b" or "adaptive" (adaptive is a Gaussian kernel with variable width, k5b is only possible for 2D templates), default="adaptive"
- -> entriesperbin : integer (number of entries per bin used to derive the Gaussian widths; larger number means wider kernel), default=200
+ -> kernel        : "k5b" or "adaptive", default="adaptive"
+	"adaptive" uses a Gaussian kernel with variable width, the width being determined from the adaptive binning
+	"k5b" is only possible for 2D templates 
+ -> entriesperbin : integer, default=200 
+	This is the number of entries per adaptive bin used to derive the Gaussian widths. Larger number means wider kernel. If the adaptive binning has been chosen in the "binning" definition, this parameter will not be taken into account and the widths will be taken from the already computed adaptive binning.
 
 - mirror:
- -> axis : 0, 1 or 2 (axis along which the mirror is applied), default=1 (Y-axis)
- -> antisymmetric: true or false (to choose between symmetry and antisymmetry), default=false
+ -> axis         : 0, 1 or 2, default=1 (Y-axis) 
+	Axis along which the mirror is applied (X=0,Y=1,Z=2)
+ -> antisymmetric: true or false, default=false 
+	To choose between symmetry and antisymmetry
 
 - floor:
  -> no parameter
 
 - rescale:
- -> factor: float (factor used to rescale the template), default=1.
+ -> factor: float, default=1 
+	Factor used to rescale the template
+
+- reweight:
+ -> axes     : list of integer (0,1 or 2), default=empty list
+	Specifies the axes along which the reweighting will be performed
+ -> rebinning: list of lists of bin boundaries, default=empty list
+	Index 0 corresponds to x-axis, index 1 to y-axis, and index 2 to z-axis.
+	By default the 1D raw distributions are taken as references to reweight along the different dimensions of the template. It may be impossible to use these raw distributions as reference because of statistical fluctuations. Therefore they can be rebined, the binning being specified here. In order to retrieve the granularity of the raw distribution, the rebinned distribution is then interpolated and used as a reference for the reweighting.
 
 
 Example:
 "postprocessing":[
-	{"type":"smooth", "kernel":"adaptive", "entriesperbin":200}
+	{"type":"smooth", "kernel":"adaptive", "entriesperbin":200},
+	{"type":"reweight", "axes":[0,1,2],
+		"rebinning":[
+			[0.,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.96,1.],
+			[-0.5,-0.46,-0.4,-0.3,-0.24,-0.16,-0.10,-0.04,-0.02,0.,0.02,0.04,0.10,0.16,0.24,0.3,0.4,0.46,0.5],
+			[0.,0.02,0.04,0.06,0.10,0.14,0.20,0.30,0.4,0.5,0.6,0.7,0.8,0.9,0.96,1.]
+			]
+	},
 	{"type":"mirror", "axis":1},
 	{"type":"floor"}
 ]
-will smooth the template with a variable Gaussian kernel, mirror the second axis, and add a floor.
+will smooth the template with a variable Gaussian kernel, reweight it along each dimension to match the 1D distributions, mirror the second axis, and add a floor.
 
 2)-4- Template sums
 -------------------
@@ -122,7 +144,15 @@ will create a template a - b - c
 ------------------
 2) Version notes
 ------------------
-Latest version: 200114_improved-smooth
+Latest version: 010214_add-reweighting
+
+* 010214_add-reweighting
+  - Improve adaptive binning close to borders
+  - Add template 1D reweighting
+  - Production of control plots
+
+* 280114_no-weight-rescaling
+  - Remove hardcoded rescaling of the event weights
 
 * 200114_improved-smooth
   - Improve smoothing

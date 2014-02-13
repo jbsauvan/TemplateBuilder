@@ -203,8 +203,11 @@ void TemplateManager::loop()
                 {
                     weight = weightForm->EvalInstance();
                 }
-                //tmp->store(point, weight*(double)nEntries/sumOfWeights);
-                tmp->store(point, weight);
+                if(weight!=0.)
+                {
+                    //tmp->store(point, weight*(double)nEntries/sumOfWeights);
+                    tmp->store(point, weight);
+                }
 
                 //execute();
             }

@@ -48,6 +48,7 @@ class TemplateParameters
         void readMirrorParameters(const Json::Value& mirror, PostProcessing& postproc);
         void readRescalingParameters(const Json::Value& rescaling, PostProcessing& postproc);
         void readReweightingParameters(const Json::Value& reweighting, PostProcessing& postproc);
+        void tokenize(const std::string& str, std::vector<std::string>& tokens, const std::string& delimiter = " ");
 
         std::string m_inputDirectory;
         std::string m_outputFileName;

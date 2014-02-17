@@ -1,7 +1,7 @@
 ********************************************
 **           TemplateBuilder              **
 **                                        **
-**       README version 01/02/14          **
+**       README version 17/02/14          **
 **                                        **
 ********************************************
 
@@ -42,8 +42,9 @@ Several objects/variables are defined, at different levels. Top level ones are:
 
 Then for each template in the list several variables can be defined:
 - name          : the name of the template (don't use the same name for several templates)
-- files         : the list of input tree files in the directory defined by 'inputDirectory'.
+- files         : the list of input tree files in the directory defined by 'inputDirectory'
 - tree          : the name of the tree in the files
+- trees         : list of input files and trees together (to be used instead of 'file' + 'tree' if different tree names are used)
 - variables     : template variables, 2 for 2D, 3 for 3D. The names correspond to those in the tree.
 - weight        : if events are weighted. This is the weight to be applied when filling templates. The name corresponds to the tree variable.
 - selection     : to apply an event selection. The variables used in the formula should be in the tree.
@@ -52,7 +53,26 @@ Then for each template in the list several variables can be defined:
 - postprocessing: to modify the templates after it is filled. For instance smoothing, mirroring, etc. can be applied.
 
 
-2)-2- Binning definition
+2)-2- Input files and trees definition
+------------------------
+There are two ways to define input files and trees.
+
+- If the tree name is the same in all input files, use keywords 'files' and 'tree':
+	"files":[
+		"HZZ4lTree_powheg15jhuGenV3H126_withDisc_new_noProt.root",
+		"HZZ4lTree_powheg15jhuGenV3PseHH126_withDisc_new_noProt.root"
+		],
+	"tree":"SelectedTree"
+
+- If tree names are different, use keyword 'trees', each string should be of the form "fileName:treeName":
+	"trees":[
+		"HZZ4lTree_powheg15jhuGenV3H126_withDisc_new_noProt.root:SelecteTree_1",
+		"HZZ4lTree_powheg15jhuGenV3PseHH126_withDisc_new_noProt.root:SelectedTree_2"
+		]
+
+
+
+2)-3- Binning definition
 ------------------------
 Two types of binning can be define:
 - fixed   : fixed size bins (standard ROOT binning)
@@ -68,7 +88,7 @@ Example:
 	"entriesperbin":200
 },
 
-2)-3- Postprocessing
+2)-4- Postprocessing
 --------------------
 A few postprocessing have been implemented for the moment:
 - smooth     : smoothing the template with k5b or variable Gaussian kernel
@@ -125,7 +145,7 @@ Example:
 ]
 will smooth the template with a variable Gaussian kernel, reweight it along each dimension to match the 1D distributions, mirror the second axis, and add a floor.
 
-2)-4- Template sums
+2)-5- Template sums
 -------------------
 Templates can also be produced from already created templates, by using the keyword 'templatesum'. 
 It will make a linear combination of templates. A list of input templates with a multiplicative factor for each of them should be given:
@@ -142,9 +162,16 @@ Example:
 will create a template a - b - c
 
 ------------------
-2) Version notes
+3) Version notes
 ------------------
-Latest version: 010214_add-reweighting
+Latest version: 170214_diff-tree-names
+
+* 170214_diff-tree-names
+  - Add possibility to use input trees with different names
+  - Fix bug when inputs or weights are stored in arrays
+
+* 130214_protect-zero-weight
+  - Add protection against events with 0 weight 
 
 * 010214_add-reweighting
   - Improve adaptive binning close to borders

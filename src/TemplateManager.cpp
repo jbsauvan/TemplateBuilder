@@ -114,13 +114,13 @@ void TemplateManager::loop()
         {
             cout<<"[INFO]   Weights '"<<tmp->getWeight()<<"' will be used\n";
         }
-        vector<string>::const_iterator fIt = tmp->inputFileBegin();
-        vector<string>::const_iterator fItE = tmp->inputFileEnd();
+        vector<pair<string,string> >::const_iterator fIt = tmp->inputFileAndTreeBegin();
+        vector<pair<string,string> >::const_iterator fItE = tmp->inputFileAndTreeEnd();
         int nFiles = (int)(fItE-fIt);
         int i = 1;
         for(;fIt!=fItE;++fIt)
         {
-            const string& fileName = *fIt;
+            const string& fileName = fIt->first;
             stringstream fullName;
             fullName << m_inputDirectory<< "/" << fileName;
             std::cout<<"[INFO]   Opening file "<<i<<"/"<<nFiles<<"\n";
@@ -131,7 +131,8 @@ void TemplateManager::loop()
                 error << "TemplateManager::loop(): Cannot open file '"<<fileName<<"'\n";
                 throw runtime_error(error.str());
             }
-            TTree* tree = dynamic_cast<TTree*>(inputFile->Get(tmp->getTreeName().c_str()));
+            //TTree* tree = dynamic_cast<TTree*>(inputFile->Get(tmp->getTreeName().c_str()));
+            TTree* tree = dynamic_cast<TTree*>(inputFile->Get(fIt->second.c_str()));
             tree->Draw(">>elist", tmp->getSelection().c_str(), "entrylist");
             TEntryList* entryList = dynamic_cast<TEntryList*>(gDirectory->Get("elist"));
             Long64_t nEntries = entryList->GetN();
@@ -159,6 +160,7 @@ void TemplateManager::loop()
                 for (Long64_t entry=0;entry<nEntries;entry++)
                 {
                     tree->GetEntry(entry);
+                    weightForm->GetNdata();
                     double weight = weightForm->EvalInstance();
                     if(!std::isfinite(weight))
                     {
@@ -168,7 +170,7 @@ void TemplateManager::loop()
                 }
                 if(sumOfWeights==0)
                 {
-                    std::cerr<<"[WARN]   Sum of weights = 0\n";
+                    std::cerr<<"[WARN]   Sum of weights = "<<sumOfWeights<<"\n";
                 }
                 //cout<<"Computing sum of weights: "<<nEntries<<"/"<<sumOfWeights<<"\n";
             }
@@ -182,6 +184,7 @@ void TemplateManager::loop()
 
                 Long64_t entryNumber = tree->GetEntryNumber(entry); 
                 tree->GetEntry(entryNumber);
+                assertForm.GetNdata();
                 if(!assertForm.EvalInstance())
                 {
                     stringstream error;
@@ -191,6 +194,7 @@ void TemplateManager::loop()
                 vector<double> point;
                 for(unsigned int v=0;v<tmp->numberOfDimensions();v++)
                 {
+                    varForms[v]->GetNdata();
                     double varValue = varForms[v]->EvalInstance();
                     if(!std::isfinite(varValue))
                     {
@@ -201,6 +205,7 @@ void TemplateManager::loop()
                 double weight = 1.;
                 if(weightForm)
                 {
+                    weightForm->GetNdata();
                     weight = weightForm->EvalInstance();
                 }
                 if(weight!=0.)

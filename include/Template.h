@@ -118,8 +118,8 @@ class Template
         const std::vector< std::pair<double,double> >& getMinMax() const {return m_minmax;} 
         const std::vector<TH1*>& getWidths() const {return m_widths;}
         TH1* getWidth(int axis=0) const {return m_widths[axis];}
-        std::vector<std::string>::const_iterator inputFileBegin() const {return m_inputFileNames.begin();}
-        std::vector<std::string>::const_iterator inputFileEnd() const {return m_inputFileNames.end();}
+        std::vector< std::pair<std::string, std::string> >::const_iterator inputFileAndTreeBegin() const {return m_inputFileAndTreeNames.begin();}
+        std::vector< std::pair<std::string, std::string> >::const_iterator inputFileAndTreeEnd() const {return m_inputFileAndTreeNames.end();}
         std::vector<std::pair<std::string,double> >::const_iterator inputTemplatesBegin() const {return m_inputTemplates.begin();}
         std::vector<std::pair<std::string,double> >::const_iterator inputTemplatesEnd() const {return m_inputTemplates.end();}
         std::vector<std::vector<double> >::const_iterator entriesBegin() const {return m_entries.begin();}
@@ -140,9 +140,9 @@ class Template
         void setAssertion(const std::string& assertion) {m_assertion = assertion;}
         void setWeight(const std::string& weight) {m_weight = weight;}
         void setVariables(const std::vector<std::string>& vars);
-        void addInputFile(const std::string& name) {m_inputFileNames.push_back(name);}
+        void addInputFileAndTree(const std::string& fileName, const std::string& treeName) {m_inputFileAndTreeNames.push_back( std::make_pair(fileName,treeName) );}
         void addInputTemplate(const std::string& name, double factor) {m_inputTemplates.push_back(make_pair(name,factor));}
-        void setTreeName(const std::string& name) {m_treeName = name;}
+        void setTreeName(const std::string& name);
         void setBinningType(BinningType type) {m_binningType = type;}
         void setEntriesPerBin(unsigned int entriesPerBin) {m_entriesPerBin = entriesPerBin;}
         void addPostProcessing(PostProcessing postProcess) {m_postProcessings.push_back(postProcess);}
@@ -161,7 +161,7 @@ class Template
     private:
         std::string m_name;
         Origin m_origin;
-        std::vector<std::string> m_inputFileNames;
+        std::vector< std::pair<std::string,std::string> > m_inputFileAndTreeNames;
         std::vector<std::pair<std::string, double> > m_inputTemplates;
         std::string m_treeName;
         std::string m_selection;

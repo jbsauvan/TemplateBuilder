@@ -172,6 +172,20 @@ void Template::setVariables(const vector<string>& vars)
     }
 }
 
+/*****************************************************************/
+void Template::setTreeName(const std::string& name) 
+/*****************************************************************/
+{
+    m_treeName = name;
+    vector< pair<string, string> >::iterator it = m_inputFileAndTreeNames.begin();
+    vector< pair<string, string> >::iterator itE = m_inputFileAndTreeNames.end();
+    for(;it!=itE;++it)
+    {
+        it->second = name;
+    }
+}
+
+
 
 /*****************************************************************/
 void Template::createTemplate(const vector<unsigned int>& nbins, const vector< pair<double,double> >& minmax)

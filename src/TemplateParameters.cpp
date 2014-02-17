@@ -76,7 +76,8 @@ void TemplateParameters::readTemplate(const Json::Value& tmp)
     std::string name = tmp.get("name", "template").asString();   
     m_templates.back()->setName(name);
     const Json::Value files = tmp["files"];
-    if(files.isNull())
+    const Json::Value trees = tmp["trees"];
+    if(files.isNull() && trees.isNull())
     {
         const Json::Value tmpSum = tmp["templatesum"];
         if(tmpSum.isNull())
@@ -94,18 +95,40 @@ void TemplateParameters::readTemplate(const Json::Value& tmp)
         }
         
     }
-    else
+    else if(!files.isNull())
     {
         m_templates.back()->setOrigin(Template::Origin::FILES);
         for(unsigned int index = 0; index < files.size(); ++index)
         {
-            m_templates.back()->addInputFile(files[index].asString());
+            m_templates.back()->addInputFileAndTree(files[index].asString(), "SelectedTree");
+        }
+    }
+    else
+    {
+        m_templates.back()->setOrigin(Template::Origin::FILES);
+        for(unsigned int index = 0; index < trees.size(); ++index)
+        {
+            string fileAndTree = trees[index].asString();
+            vector<string> tokens;
+            tokenize(fileAndTree, tokens, ":");
+            if(tokens.size()!=2)
+            {
+                stringstream error;
+                error << "TemplateParameters::readTemplate(): List of trees should be of the form fileName:treeName";
+                throw runtime_error(error.str());
+            }
+            m_templates.back()->addInputFileAndTree(tokens[0], tokens[1]);
         }
     }
     if(m_templates.back()->getOrigin()==Template::Origin::FILES)
     {
-        std::string tree = tmp.get("tree", "SelectedTree").asString(); 
-        m_templates.back()->setTreeName(tree);
+        //std::string tree = tmp.get("tree", "SelectedTree").asString(); 
+        const Json::Value tree = tmp["tree"];
+        if(!tree.isNull())
+        {
+            std::string treeName = tree.asString();
+            m_templates.back()->setTreeName(treeName);
+        }
         const Json::Value variables = tmp["variables"];
         if(variables.isNull())
         {
@@ -298,4 +321,28 @@ void TemplateParameters::readReweightingParameters(const Json::Value& reweightin
     }
     postproc.addParameter("axes", axes);
     postproc.addParameter("rebinning", binss);
+}
+
+/*****************************************************************/
+void TemplateParameters::tokenize(const string& str,
+        vector<string>& tokens,
+        const string& delimiter)
+/*****************************************************************/
+{
+    string::size_type length = delimiter.size();
+    string::size_type lastPos = 0;
+    string::size_type pos     = str.find(delimiter, 0);
+
+
+    while (string::npos != pos)
+    {
+        // Found a token, add it to the vector.
+        if(str.substr(lastPos, pos - lastPos).size()>0)
+            tokens.push_back(str.substr(lastPos, pos - lastPos));
+        lastPos = pos + length;
+        // Find next "non-delimiter"
+        pos = str.find(delimiter, lastPos);
+    }
+    if(str.substr(lastPos).size()>0)
+        tokens.push_back(str.substr(lastPos));
 }

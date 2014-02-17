@@ -111,7 +111,10 @@ void TemplateBuilder::fillTemplates()
                     }
                 }
             }
-            cout<<"[WARN]   "<<overflows<<" events in under/overflow bins\n";
+            if(overflows>0)
+            {
+                cout<<"[WARN]   "<<overflows<<" events in under/overflow bins\n";
+            }
         }
         else if(tmp->getBinningType()==Template::BinningType::ADAPTIVE)
         {

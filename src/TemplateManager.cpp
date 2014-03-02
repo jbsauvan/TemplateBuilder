@@ -117,6 +117,7 @@ void TemplateManager::loop()
         vector<pair<string,string> >::const_iterator fIt = tmp->inputFileAndTreeBegin();
         vector<pair<string,string> >::const_iterator fItE = tmp->inputFileAndTreeEnd();
         int nFiles = (int)(fItE-fIt);
+        Long64_t nEntriesTot = 0;
         int i = 1;
         for(;fIt!=fItE;++fIt)
         {
@@ -152,14 +153,16 @@ void TemplateManager::loop()
             }
             TTreeFormula assertForm("assert", tmp->getAssertion().c_str(), tree);
 
-            // first compute sum of weights for global normalization of the sample
+            // first compute sum of weights
+            nEntriesTot += nEntries;
             double sumOfWeights = (double)nEntries;
             if(weightForm)
             {
                 sumOfWeights = 0.;
                 for (Long64_t entry=0;entry<nEntries;entry++)
                 {
-                    tree->GetEntry(entry);
+                    Long64_t entryNumber = tree->GetEntryNumber(entry); 
+                    tree->GetEntry(entryNumber);
                     weightForm->GetNdata();
                     double weight = weightForm->EvalInstance();
                     if(!std::isfinite(weight))
@@ -216,6 +219,7 @@ void TemplateManager::loop()
 
                 //execute();
             }
+            tmp->setOriginalSumOfWeights(tmp->originalSumOfWeights() + sumOfWeights);
             if(weightForm)
             {
                 weightForm->Delete();
@@ -227,6 +231,8 @@ void TemplateManager::loop()
             inputFile->Close();
             i++;
         }
+        cout<<"[INFO]   Number of entries = "<<nEntriesTot<<"\n";
+        cout<<"[INFO]   Sum of weights    = "<<tmp->originalSumOfWeights()<<"\n";
     }
     m_templates.fillTemplates();
     m_templates.postProcessing(Template::Origin::FILES);

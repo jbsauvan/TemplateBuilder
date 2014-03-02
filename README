@@ -1,7 +1,7 @@
 ********************************************
 **           TemplateBuilder              **
 **                                        **
-**       README version 17/02/14          **
+**       README version 02/03/14          **
 **                                        **
 ********************************************
 
@@ -41,16 +41,17 @@ Several objects/variables are defined, at different levels. Top level ones are:
 - templates     : a list of template definitions
 
 Then for each template in the list several variables can be defined:
-- name          : the name of the template (don't use the same name for several templates)
-- files         : the list of input tree files in the directory defined by 'inputDirectory'
-- tree          : the name of the tree in the files
-- trees         : list of input files and trees together (to be used instead of 'file' + 'tree' if different tree names are used)
-- variables     : template variables, 2 for 2D, 3 for 3D. The names correspond to those in the tree.
-- weight        : if events are weighted. This is the weight to be applied when filling templates. The name corresponds to the tree variable.
-- selection     : to apply an event selection. The variables used in the formula should be in the tree.
-- assertion     : to define an assertion. If it fails the program will stop.
-- binning       : the binning of the template
-- postprocessing: to modify the templates after it is filled. For instance smoothing, mirroring, etc. can be applied.
+- name                 : the name of the template (don't use the same name for several templates)
+- files                : the list of input tree files in the directory defined by 'inputDirectory'
+- tree                 : the name of the tree in the files
+- trees                : list of input files and trees together (to be used instead of 'file' + 'tree' if different tree names are used)
+- variables            : template variables, 2 for 2D, 3 for 3D. The names correspond to those in the tree.
+- weight               : if events are weighted. This is the weight to be applied when filling templates. The name corresponds to the tree variable.
+- conserveSumOfWeights : tell if the events sum of weights has to be used to normalize the template (true or false (default) ). If false, the template is normalized to 1. In any case, a scaling factor can always be applied at the end (see "rescale" postprocessing).
+- selection            : to apply an event selection. The variables used in the formula should be in the tree.
+- assertion            : to define an assertion. If it fails the program will stop.
+- binning              : the binning of the template
+- postprocessing       : to modify the templates after it is filled. For instance smoothing, mirroring, etc. can be applied.
 
 
 2)-2- Input files and trees definition
@@ -164,7 +165,10 @@ will create a template a - b - c
 ------------------
 3) Version notes
 ------------------
-Latest version: 170214_diff-tree-names
+Latest version: 020314_norm-from-weights
+
+* 020314_norm-from-weights
+  - Add possibility to keep the original sum of weights to normalize the template
 
 * 170214_diff-tree-names
   - Add possibility to use input trees with different names

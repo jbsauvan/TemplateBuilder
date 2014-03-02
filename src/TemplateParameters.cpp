@@ -150,6 +150,8 @@ void TemplateParameters::readTemplate(const Json::Value& tmp)
         m_templates.back()->setVariables(vars);
         std::string weight = tmp.get("weight", "").asString(); 
         m_templates.back()->setWeight(weight);
+        bool conserveSumOfWeights = tmp.get("conserveSumOfWeights", false).asBool(); 
+        m_templates.back()->setConserveSumOfWeights(conserveSumOfWeights);
         std::string selection = tmp.get("selection", "").asString(); 
         m_templates.back()->setSelection(selection);
         std::string assertion = tmp.get("assertion", "1").asString(); 

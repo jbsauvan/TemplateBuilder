@@ -128,6 +128,8 @@ class Template
         std::vector<double>::const_iterator weightsEnd() const {return m_weights.end();}
         const std::vector< std::vector<double> >& entries() const {return m_entries;}
         const std::vector<double>& weights() const {return m_weights;}
+        double originalSumOfWeights() const {return m_originalSumOfWeights;}
+        bool conserveSumOfWeights() const {return m_conserveSumOfWeights;}
         std::vector<PostProcessing>::iterator postProcessingBegin() {return m_postProcessings.begin();}
         std::vector<PostProcessing>::iterator postProcessingEnd() {return m_postProcessings.end();}
         std::vector<TCanvas*>::iterator controlPlotsBegin() {return m_controlPlots.begin();}
@@ -153,6 +155,8 @@ class Template
         void setRescaling(double scaleFactor) {m_scaleFactor = scaleFactor;}
         void store(const std::vector<double>& vs, double w);
         void reweight1D(unsigned int axis, unsigned int bin, double weight);
+        void setOriginalSumOfWeights(double sumOfWeights) {m_originalSumOfWeights = sumOfWeights;}
+        void setConserveSumOfWeights(bool conserve) {m_conserveSumOfWeights = conserve;}
         // control plot methods
         void makeProjectionControlPlot(const std::string& tag);
         void addControlPlot(TCanvas* plot) {m_controlPlots.push_back(plot);}
@@ -178,6 +182,8 @@ class Template
         double m_scaleFactor;
         std::vector< std::vector<double> > m_entries;
         std::vector< double > m_weights;
+        double m_originalSumOfWeights;
+        bool m_conserveSumOfWeights;
 
         std::vector<TCanvas*> m_controlPlots;
 

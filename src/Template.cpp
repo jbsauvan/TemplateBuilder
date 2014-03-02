@@ -45,7 +45,9 @@ PostProcessing::~PostProcessing()
 
 ///////////////////////////////////////////////////////////////////////////////////////////:
 /*****************************************************************/
-Template::Template():m_template(NULL)
+Template::Template():m_template(NULL),
+    m_originalSumOfWeights(0.),
+    m_conserveSumOfWeights(false)
 /*****************************************************************/
 {
 }
@@ -63,6 +65,8 @@ Template::Template(const Template& tmp)
     }
     setWidths(tmp.getWidths());
     setRaw1DTemplates(tmp.getRaw1DTemplates());
+    setOriginalSumOfWeights(tmp.originalSumOfWeights());
+    m_originalSumOfWeights = false;
 
 }
 

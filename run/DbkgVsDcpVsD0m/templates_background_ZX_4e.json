@@ -1,0 +1,36 @@
+// Configuration options
+{
+	"inputDirectory":"", // TO BE FILLED 
+	"outputFile":"", // TO BE FILLED 
+	// template definitions
+	"templates":[
+		// template Z+X 
+		{
+			"name":"template_ZX",
+			"files":[
+				// TO BE FILLED
+				],
+			"tree":"SelectedTree",
+			"variables":["D_g1_vs_g4_phi0_cal","D_intPdf_phi0","D_sKD"],
+			"weight":"FakeRate_w",
+			"selection":"ZZMass>106 && ZZMass<141",
+			"assertion":"D_g1_vs_g4_phi0_cal >= 0. && D_g1_vs_g4_phi0_cal <= 1.",
+			"binning":{
+				"type":"fixed",
+				"bins":[50,0.,1.,50,-0.5,0.5,50,0.,1.]
+			},
+			"postprocessing":[
+				{"type":"smooth","kernel":"adaptive","entriesperbin":200},
+				{"type":"reweight", "axes":[0,1,2],
+					"rebinning":[
+						[0.,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.96,1.],
+						[-0.5,-0.46,-0.4,-0.3,-0.24,-0.16,-0.10,-0.04,-0.02,0.,0.02,0.04,0.10,0.16,0.24,0.3,0.4,0.46,0.5],
+						[0.,0.02,0.04,0.06,0.10,0.14,0.20,0.30,0.4,0.5,0.6,0.7,0.8,0.9,0.96,1.]
+						]
+				},
+				{"type":"mirror", "axis":1},
+				{"type":"floor"}
+			]
+		}
+	]
+}

@@ -1,0 +1,33 @@
+Latest version: 070314_add-fa3-configs
+
+* 070314_add-fa3-configs
+  - Add first fa3 template configurations
+
+* 020314_norm-from-weights
+  - Add possibility to keep the original sum of weights to normalize the template
+
+* 170214_diff-tree-names
+  - Add possibility to use input trees with different names
+  - Fix bug when inputs or weights are stored in arrays
+
+* 130214_protect-zero-weight
+  - Add protection against events with 0 weight 
+
+* 010214_add-reweighting
+  - Improve adaptive binning close to borders
+  - Add template 1D reweighting
+  - Production of control plots
+
+* 280114_no-weight-rescaling
+  - Remove hardcoded rescaling of the event weights
+
+* 200114_improved-smooth
+  - Improve smoothing
+  - Possibility to give parameters to post-processings
+
+* 150114_add-3D
+  - Enable the creation of 3D templates
+
+* 060113_first-version
+  - Implement 2D templates with fixed size bins and adaptive binning
+  - Implement smoothing (k5B and adaptive), mirroring, flooring 

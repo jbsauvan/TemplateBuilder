@@ -153,6 +153,7 @@ class Template
         void setRaw1DTemplates(const std::vector<TH1D*>& histo);
         void setWidths(const std::vector<TH1*>& width);
         void setRescaling(double scaleFactor) {m_scaleFactor = scaleFactor;}
+        bool inTemplate(const std::vector<double>& vs);
         void store(const std::vector<double>& vs, double w);
         void reweight1D(unsigned int axis, unsigned int bin, double weight);
         void setOriginalSumOfWeights(double sumOfWeights) {m_originalSumOfWeights = sumOfWeights;}

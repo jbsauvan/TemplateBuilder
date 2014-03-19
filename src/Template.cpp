@@ -66,7 +66,7 @@ Template::Template(const Template& tmp)
     setWidths(tmp.getWidths());
     setRaw1DTemplates(tmp.getRaw1DTemplates());
     setOriginalSumOfWeights(tmp.originalSumOfWeights());
-    m_originalSumOfWeights = false;
+    m_conserveSumOfWeights = false;
 
 }
 
@@ -292,6 +292,20 @@ void Template::setWidths(const vector<TH1*>& widths)
         nameWidth << m_name << "_width" << axis;
         m_widths.push_back(dynamic_cast<TH1*>(widths[axis]->Clone(nameWidth.str().c_str())));
     }
+}
+
+/*****************************************************************/
+bool Template::inTemplate(const vector<double>& vs)
+/*****************************************************************/
+{
+    for(unsigned int d=0;d<vs.size();d++)
+    {
+        if(vs[d]>m_minmax[d].second || vs[d]<m_minmax[d].first)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 /*****************************************************************/

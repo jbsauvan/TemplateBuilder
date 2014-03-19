@@ -4,6 +4,8 @@
 #include "TH3F.h"
 
 #include <iostream>
+#include <sstream>
+#include <stdexcept>
 #include <iomanip>
 #include <limits>
 #include <map>
@@ -11,15 +13,275 @@
 using namespace std;
 
 
+struct pair_comp
+{
+   bool operator()( const pair<double, int>& lhs, const double& rhs ) const 
+   { 
+        return lhs.first < rhs;
+   }
+   bool operator()( const double& lhs, const pair<double, int>& rhs ) const 
+   {
+        return lhs < rhs.first;
+   }
+   bool operator()( const pair<double, int>& lhs, const pair<double, int>& rhs ) const 
+   {
+        return lhs.first < rhs.first;
+   }
+};
+
+
 /*****************************************************************/
-BinLeaf::BinLeaf()
+EntryList::EntryList(int ndim):
+    m_ndim(ndim),
+    m_maxWeight(0.),
+    m_sumOfWeights(0.),
+    m_sumOfWeightsError(0.)
+/*****************************************************************/
+{
+    m_sortedValues.resize(ndim);
+}
+
+
+/*****************************************************************/
+void EntryList::add(const std::vector<double>& values, double weight)
+/*****************************************************************/
+{
+    int n = m_weights.size();
+    vector<int> pos;
+    for(unsigned int d=0;d<m_ndim;d++)
+    {
+        pair<double,int> p = make_pair(values[d], n);
+        m_sortedValues[d].push_back(p);
+        pos.push_back(n);
+    }
+    m_sortedPositions.push_back(pos);
+    m_weights.push_back(weight);
+}
+
+/*****************************************************************/
+unsigned int EntryList::size() const
+/*****************************************************************/
+{
+    return m_weights.size();
+}
+
+/*****************************************************************/
+unsigned int EntryList::effectiveSize() const
+/*****************************************************************/
+{
+    double relError = sumOfWeightsError()/sumOfWeights();
+    //double effNEntries = sqrt((double)size())/relError;
+    double effNEntries = 1./(relError*relError); // number of entries that give the same relative error as the sum of weights
+    return (unsigned int)effNEntries;
+}
+
+
+/*****************************************************************/
+double EntryList::sumOfWeights() const
+/*****************************************************************/
+{
+    return m_sumOfWeights;
+}
+
+/*****************************************************************/
+double EntryList::sumOfWeightsError() const
+/*****************************************************************/
+{
+    return m_sumOfWeightsError;
+}
+
+/*****************************************************************/
+double EntryList::maxWeight() const
+/*****************************************************************/
+{
+    return m_maxWeight;
+}
+
+/*****************************************************************/
+double EntryList::value(unsigned int axis, int entry) const
+/*****************************************************************/
+{
+    int pos = m_sortedPositions[entry][axis];
+    return m_sortedValues[axis][pos].first;
+}
+
+/*****************************************************************/
+double EntryList::weight(int entry) const
+/*****************************************************************/
+{
+    return m_weights[entry];
+}
+
+
+/*****************************************************************/
+void EntryList::sort()
+/*****************************************************************/
+{
+    int nentries = m_weights.size();
+    for(unsigned int d=0;d<m_ndim; d++)
+    {
+        // sort values in each dimension
+        std::sort(m_sortedValues[d].begin(), m_sortedValues[d].end(), pair_comp());
+        // then compute the map of sorted positions
+        for(int e=0; e<nentries; e++)
+        {
+            int pos = m_sortedValues[d][e].second;
+            m_sortedPositions[pos][d] = e;
+        }
+    }
+    // compute sum of weights, sum of weight stat. uncertainty and maximum weight
+    double sumw = 0.;
+    double sumw2 = 0.;
+    double maxw = 0.;
+    for(unsigned int e=0; e<m_weights.size();e++)
+    {
+        sumw += m_weights[e];
+        sumw2 += m_weights[e]*m_weights[e];
+        if(m_weights[e]>maxw) maxw = m_weights[e];
+    }
+    m_sumOfWeights = sumw;
+    m_maxWeight = maxw;
+    m_sumOfWeightsError = sqrt(sumw2);
+}
+
+/*****************************************************************/
+std::pair<EntryList, EntryList> EntryList::split(unsigned int axis, double cut) const
+/*****************************************************************/
+{
+    EntryList leftList(m_ndim);
+    EntryList rightList(m_ndim);
+    vector< pair<double,int> >::const_iterator begin = m_sortedValues[axis].begin();
+    vector< pair<double,int> >::const_iterator end = m_sortedValues[axis].end();
+    vector< pair<double,int> >::const_iterator it;
+    // loop over values and separate entries to the left and right wrt. the cut
+    for(it=begin;it!=end;++it)
+    {
+        int index = it->second;
+        double value = it->first;
+        vector<double> values;
+        for(unsigned int d=0;d<m_ndim;d++)
+        {
+            // use the position map to group together the different values of one entry
+            values.push_back( m_sortedValues[d][m_sortedPositions[index][d]].first ); 
+        }
+        double weight = m_weights[index];
+        if(value<cut)
+        {
+            leftList.add(values, weight);
+        }
+        else
+        {
+            rightList.add(values, weight);
+        }
+    }
+    // The dimension of the cut is already sorted but not the others. So sort the two sub lists.
+    leftList.sort();
+    rightList.sort();
+    return make_pair(leftList, rightList);
+
+}
+
+/*****************************************************************/
+std::pair<int, int> EntryList::entriesIfSplit(unsigned int axis, double cut) const
+/*****************************************************************/
+{
+    vector< pair<double,int> >::const_iterator begin = m_sortedValues[axis].begin();
+    vector< pair<double,int> >::const_iterator end = m_sortedValues[axis].end();
+    vector< pair<double,int> >::const_iterator splitpos = std::lower_bound(begin, end, cut, pair_comp());
+    int leftEntries  = splitpos-begin;
+    int rightEntries = end-splitpos;
+    return make_pair(leftEntries, rightEntries);
+}
+
+
+/*****************************************************************/
+std::vector<double> EntryList::percentiles(const std::vector<double>& qs, unsigned int axis) const
+/*****************************************************************/
+{
+    vector<double> qscopy = qs;
+    // make sure the quantiles are in increasing order
+    std::sort(qscopy.begin(),qscopy.end());
+
+    vector<double> ps(qscopy.size());
+    for(unsigned int qi=0;qi<qscopy.size();qi++)
+    {
+        double q = qscopy[qi];
+        // This doesn't take into account the entry weights, because it is much faster this way.
+        // But it may be added in the future, with a percentiles cache in order to avoid their calculation each time.
+        pair<double,int> valpos = *(m_sortedValues[axis].begin()+int(m_sortedValues[axis].size()*q/100.));
+        ps[qi] = valpos.first;
+    }
+    return ps;
+}
+
+/*****************************************************************/
+double EntryList::densityGradient(unsigned int axis, double q) const
+/*****************************************************************/
+{
+    int ntot = m_weights.size(); 
+    vector<double> qs;
+    double qmulti = q;
+    while(qmulti<100)
+    {
+        qs.push_back(qmulti);
+        qmulti += q;
+    }
+    // Filling percentile array
+    vector<double> pX = percentiles(qs,axis);
+    pX.insert(pX.begin(), m_sortedValues[axis][0].first);
+    pX.push_back(m_sortedValues[axis][ntot-1].first);
+
+    double minDensity = numeric_limits<double>::max();
+    double maxDensity = 0.;
+    for(unsigned int i=0;i<pX.size()-1;i++)
+    {
+        double px1 = pX[i];
+        double px2 = pX[i+1];
+        // Number of entries between two percentiles divided by the distance between them
+        double density = ( (float)ntot*(float)q/100. )/(px2-px1);
+        if(density<minDensity) minDensity = density;
+        if(density>maxDensity) maxDensity = density;
+    }
+    // Max density difference
+    double gradient = fabs(maxDensity-minDensity);
+    return gradient;
+}
+
+
+/*****************************************************************/
+void EntryList::print()
+/*****************************************************************/
+{
+    cerr<<"Printing entry list\n";
+    cerr<<"  "<<m_ndim<<" dimensions, "<<size()<<" entries\n";
+    int ntot = size();
+    int step = ntot/10;
+    for(unsigned int d=0;d<m_ndim;d++)
+    {
+        cerr<<"[";
+        for(int e=0;e<ntot;e+=step)
+        {
+            cerr<<m_sortedValues[d][e].first<<"...";
+        }
+        cerr<<"]\n";
+    }
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+/*****************************************************************/
+BinLeaf::BinLeaf():
+    m_ndim(2),
+    m_index(0),
+    m_entryList(2)
 /*****************************************************************/
 {
 
     m_binBoundaries.push_back(make_pair(0.,1.));
     m_binBoundaries.push_back(make_pair(0.,1.));
-    m_index = 0;
-    m_ndim = 2;
 }
 
 /*****************************************************************/
@@ -30,7 +292,10 @@ BinLeaf::~BinLeaf()
 }
 
 /*****************************************************************/
-BinLeaf::BinLeaf(const std::vector< std::pair<double,double> >& minmax)
+BinLeaf::BinLeaf(const std::vector< std::pair<double,double> >& minmax):
+    m_ndim(minmax.size()),
+    m_index(0),
+    m_entryList(minmax.size())
 /*****************************************************************/
 {
     unsigned int ndim = minmax.size();
@@ -38,8 +303,9 @@ BinLeaf::BinLeaf(const std::vector< std::pair<double,double> >& minmax)
     {
         if(minmax[axis].first==minmax[axis].second)
         {
-            cerr<<"ERROR: BinLeaf.__init__(): Trying to build a bin with zero width ("<<minmax[axis].first<<","<<minmax[axis].second<<")\n";
-            exit(0);
+            stringstream error;
+            error << "BinLeaf::BinLeaf(): Trying to build a bin with zero width ("<<minmax[axis].first<<","<<minmax[axis].second<<")";
+            throw runtime_error(error.str());
         }
     }
 
@@ -47,8 +313,6 @@ BinLeaf::BinLeaf(const std::vector< std::pair<double,double> >& minmax)
     {
         m_binBoundaries.push_back(make_pair(minmax[axis].first,minmax[axis].second));
     }
-    m_index = 0;
-    m_ndim = ndim;
 }
 
 /*****************************************************************/
@@ -139,128 +403,58 @@ bool BinLeaf::isNeighbor(BinLeaf* leaf)
 unsigned int BinLeaf::getNEntries()
 /*****************************************************************/
 {
-    return m_entries.size();
+    return m_entryList.size();
+}
+
+/*****************************************************************/
+unsigned int BinLeaf::effectiveNEntries()
+/*****************************************************************/
+{
+    return m_entryList.effectiveSize();
 }
 
 /*****************************************************************/
 double BinLeaf::getSumOfWeights()
 /*****************************************************************/
 {
-    double sumw = 0.;
-    for(unsigned int e=0; e<m_weights.size();e++)
-    {
-        sumw += m_weights[e];
-    }
-    return sumw;
+    return m_entryList.sumOfWeights();
 }
 
 /*****************************************************************/
-const std::vector< std::vector<double> >& BinLeaf::getEntries()
+const EntryList& BinLeaf::getEntries()
 /*****************************************************************/
 {
-    return m_entries;
+    return m_entryList;
 }
 
-/*****************************************************************/
-const std::vector< double >& BinLeaf::getWeights()
-/*****************************************************************/
-{
-    return m_weights;
-}
+///*****************************************************************/
+//const std::vector< std::vector<double> >& BinLeaf::getEntries()
+///*****************************************************************/
+//{
+//    return m_entries;
+//}
+
+///*****************************************************************/
+//const std::vector< double >& BinLeaf::getWeights()
+///*****************************************************************/
+//{
+//    return m_weights;
+//}
 
 /*****************************************************************/
 std::vector<double> BinLeaf::percentiles(const std::vector<double>& q, unsigned int axis)
 /*****************************************************************/
 {
-    if(axis>=m_ndim)
-    {
-        cerr<<"ERROR: BinLeaf.getPercentiles(): axis>=ndim \n";
-        exit(0);
-    }
-    vector<double> qcopy = q;
-    // make sure the quantiles are in increasing order
-    sort(qcopy.begin(),qcopy.end());
-    // FIXME: don't take into account the entry weights
-    vector<double> values;
-    for(unsigned int e=0;e<m_entries.size();e++)
-    {
-        values.push_back(m_entries[e][axis]);
-    }
-    // sort values
-    sort(values.begin(),values.end());
-    vector<double> ps;
-    //compute quantiles
-    double n = 0.;
-    double tot = getNEntries();
-    double currentq = 0;
-    for(unsigned int e=0; e<values.size(); e++)
-    {
-        n += 1.;
-        if(n>=qcopy[currentq]/100.*tot)
-        {
-            double p = values[e];
-            ps.push_back(p);
-            currentq++;
-            if(currentq>qcopy.size())
-            {
-                break;
-            }
-        }
-    }
-    return ps;
+    return m_entryList.percentiles(q, axis);
 }
 
 /*****************************************************************/
 double BinLeaf::densityGradient(unsigned int axis, double q)
 /*****************************************************************/
 {
-    vector<double> qs;
-    double qmulti = q;
-    while(qmulti<100)
-    {
-        qs.push_back(qmulti);
-        qmulti += q;
-    }
-    // Filling percentile array
-    vector<double> pX = percentiles(qs,axis);
-    pX.insert(pX.begin(), m_binBoundaries[axis].first);
-    pX.push_back(m_binBoundaries[axis].second);
-
-    //vector<double> localDensities;
-    // FIXME: weights are not taken into account here
-    unsigned int ntot = getNEntries();
-    //double pxtot1 = m_binBoundaries[axis].first;
-    //double pxtot2 = m_binBoundaries[axis].second;
-    double minDensity = numeric_limits<double>::max();
-    double maxDensity = 0.;
-    for(unsigned int i=0;i<pX.size()-1;i++)
-    {
-        double px1 = pX[i];
-        double px2 = pX[i+1];
-        // Number of entries between two percentiles divided by the distance between them
-        double density = ( (float)ntot*(float)q/100. )/(px2-px1);
-        if(density<minDensity) minDensity = density;
-        if(density>maxDensity) maxDensity = density;
-        //localDensities.push_back(density);
-    }
-    double gradient = fabs(maxDensity-minDensity);
-    return gradient;
+    return m_entryList.densityGradient(axis,q);
 }
 
-/*****************************************************************/
-double BinLeaf::density(double xmin, double xmax, unsigned int axis)
-/*****************************************************************/
-{
-    double nentries = 0.;
-    for(unsigned int e=0;e<m_entries.size();e++)
-    {
-        if(m_entries[e][axis]>=xmin and m_entries[e][axis]<xmax)
-        {
-            nentries += m_entries[e][2]; // entry weight
-        }
-    }
-    return nentries/(xmax-xmin);
-}
 
 /*****************************************************************/
 bool BinLeaf::inBin(const std::vector<double>& xs)
@@ -291,11 +485,25 @@ bool BinLeaf::addEntry(const std::vector<double>& xsi, double wi)
     // Check if it is contained in the bin
     if(inBin(xsi))
     {
-        m_entries.push_back(xsi);
-        m_weights.push_back(wi);
+        m_entryList.add(xsi,wi);
         return true;
     }
     return false;
+}
+
+
+/*****************************************************************/
+void BinLeaf::setEntries(const EntryList& entries)
+/*****************************************************************/
+{
+    m_entryList = entries;
+}
+
+/*****************************************************************/
+void BinLeaf::sortEntries()
+/*****************************************************************/
+{
+    m_entryList.sort();
 }
 
 /*****************************************************************/
@@ -319,8 +527,8 @@ std::vector<TLine*> BinLeaf::getBoundaryTLines()
 
 
 //////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -479,22 +687,22 @@ double BinTree::getSumOfWeights()
 }
 
 
-/*****************************************************************/
-std::vector< std::vector<double> > BinTree::getEntries()
-/*****************************************************************/
-{
-    if(m_leaf)
-    {
-        return m_leaf->getEntries();
-    }
-    else
-    {
-        vector< vector<double> > entries;
-        entries.insert(entries.end(),m_treeSons[0]->getEntries().begin(),m_treeSons[0]->getEntries().end());
-        entries.insert(entries.end(),m_treeSons[1]->getEntries().begin(),m_treeSons[1]->getEntries().end());
-        return entries;
-    }
-}
+///*****************************************************************/
+//std::vector< std::vector<double> > BinTree::getEntries()
+///*****************************************************************/
+//{
+//    if(m_leaf)
+//    {
+//        return m_leaf->getEntries();
+//    }
+//    else
+//    {
+//        vector< vector<double> > entries;
+//        entries.insert(entries.end(),m_treeSons[0]->getEntries().begin(),m_treeSons[0]->getEntries().end());
+//        entries.insert(entries.end(),m_treeSons[1]->getEntries().begin(),m_treeSons[1]->getEntries().end());
+//        return entries;
+//    }
+//}
 
 /*****************************************************************/
 BinLeaf* BinTree::getLeaf(const std::vector<double>& xs)
@@ -663,25 +871,16 @@ pair<int,int> BinTree::entriesIfSplit(double cut, unsigned int axis)
 {
     if(!m_leaf)
     {
-        cerr<<"ERROR: BinTree::entriesIfSplit(): This method can only be applied on terminal nodes\n";
-        exit(1);
+        throw runtime_error("BinTree::entriesIfSplit(): This method can only be applied on terminal nodes");
     }
     // Cannot split the bin if the cut value is not contained within the bin boundaries
     if(cut<=getBinBoundaries()[axis].first || cut>=getBinBoundaries()[axis].second)
     {
-        cerr<<"ERROR: BinTree.entriesIfSplit(): Trying to split a node outside its bin boundaries. "<<cut<<"!=("<<getBinBoundaries()[axis].first<<","<<getBinBoundaries()[axis].second<<")";
-        exit(1);
+        stringstream error;
+        error<<"BinTree::entriesIfSplit(): Trying to split a node outside its bin boundaries. "<<cut<<"!=("<<getBinBoundaries()[axis].first<<","<<getBinBoundaries()[axis].second<<")";
+        throw runtime_error(error.str());
     }
-
-    int entries1 = 0;
-    int entries2 = 0;
-    vector< vector<double> > entries = m_leaf->getEntries();
-    for(unsigned int e=0;e<entries.size();e++)
-    {
-        if(entries[e][axis]<cut) entries1++;
-        else entries2++;
-    }
-    return make_pair(entries1,entries2);
+    return m_leaf->getEntries().entriesIfSplit(axis, cut);
 }
 
 /*****************************************************************/
@@ -690,14 +889,16 @@ void BinTree::splitLeaf(double cut, unsigned int maxLeafIndex, unsigned int axis
 {
         if(!m_leaf)
         {
-            cerr<<"ERROR: BinTree.split(): This method can only be applied on terminal nodes\n";
-            exit(1);
+            stringstream error;
+            error << "BinTree.split(): This method can only be applied on terminal nodes";
+            throw runtime_error(error.str());
         }
         // Cannot split the bin if the cut value is not contained within the bin boundaries
         if(cut<=getBinBoundaries()[axis].first || cut>=getBinBoundaries()[axis].second)
         {
-            cerr<<"ERROR: BinTree.split(): Trying to split a node outside its bin boundaries. "<<cut<<"!=("<<getBinBoundaries()[axis].first<<","<<getBinBoundaries()[axis].second<<")";
-            exit(1);
+            stringstream error;
+            error << "BinTree.split(): Trying to split a node outside its bin boundaries. "<<cut<<"!=("<<getBinBoundaries()[axis].first<<","<<getBinBoundaries()[axis].second<<")";
+            throw runtime_error(error.str());
         }
         // Create two neighbour bins
         m_cutAxis = axis;
@@ -715,13 +916,9 @@ void BinTree::splitLeaf(double cut, unsigned int maxLeafIndex, unsigned int axis
         m_treeSons[0]->setMaxAxisAsymmetry(m_maxAxisAsymmetry);
         m_treeSons[1]->setMaxAxisAsymmetry(m_maxAxisAsymmetry);
         // Fill the two leaves that have just been created with entries of the parent node
-        vector< vector<double> > entries = m_leaf->getEntries();
-        vector<double> weights = m_leaf->getWeights();
-        for(unsigned int e=0;e<entries.size();e++)
-        {
-            m_treeSons[0]->leaf()->addEntry(entries[e],weights[e]);
-            m_treeSons[1]->leaf()->addEntry(entries[e],weights[e]);
-        }
+        pair<EntryList,EntryList> entryLists = m_leaf->getEntries().split(axis, cut);
+        m_treeSons[0]->leaf()->setEntries(entryLists.first);
+        m_treeSons[1]->leaf()->setEntries(entryLists.second);
         // Assign new leaf indices
         m_treeSons[0]->leaf()->setIndex(maxLeafIndex+1);
         m_treeSons[1]->leaf()->setIndex(maxLeafIndex+2);
@@ -744,8 +941,8 @@ void BinTree::findBestSplit(BinTree*& bestNode, unsigned int& axis, double& grad
     if(m_leaf)
     {
         // Don't split if the bin contains less than 2 times the minimum number of entries
-        // FIXME: do we want the stopping condition on Nentries or sum of weights? For the moment it is Nentries
-        if(getNEntries()<2.*m_minLeafEntries)
+        //if(getNEntries()<2.*m_minLeafEntries)
+        if(m_leaf->effectiveNEntries()<2.*m_minLeafEntries)
         {
             bestNode = NULL;
             axis = 0;
@@ -829,8 +1026,9 @@ void BinTree::constrainSplit(int axis, double& cut, bool& veto)
         }
         else
         {
-            cerr<<"ERROR: BinTree::constrainSplit(): Cannot use grid constrain for more than 3D\n";
-            exit(1);
+            stringstream error;
+            error << "BinTree::constrainSplit(): Cannot use grid constrain for more than 3D";
+            throw runtime_error(error.str());
         }
         // Find the closest grid constraint for the cut
         // And modify the cut according to this constraint
@@ -934,10 +1132,12 @@ void BinTree::build()
 /*****************************************************************/
 {
 
+    m_leaf->sortEntries();
     // If the tree already contains too small number of entries, it does nothing
-    if(getNEntries()<2.*m_minLeafEntries)
+    //if(getNEntries()<2.*m_minLeafEntries)
+    if(m_leaf->effectiveNEntries()<2.*m_minLeafEntries)
     {
-        cout<<"[WARN] Total number of entries = "<<getNEntries()<<" < 2 x "<<m_minLeafEntries<<". The procedure stops with one single bin\n";
+        cout<<"[WARN] Total effective number of entries = "<<m_leaf->effectiveNEntries()<<" < 2 x "<<m_minLeafEntries<<". The procedure stops with one single bin\n";
         cout<<"[WARN]   You'll have to reduce the minimum number of entries per bin if you want to have more than one bin.\n";
         return;
     }
@@ -1206,13 +1406,15 @@ TH1* BinTree::fillHistogram()
 {
         if(!m_gridConstraint)
         {
-            cerr<<"ERROR: BinLeaf::fillHistogram(): Trying to fill histogram, but the binning is unknown. Define first the gridConstraint.\n";
-            exit(1);
+            stringstream error;
+            error << "BinTree::fillHistogram(): Trying to fill histogram, but the binning is unknown. Define first the gridConstraint";
+            throw runtime_error(error.str());
         }
         if(m_ndim>3)
         {
-            cerr<<"ERROR: BinLeaf::fillHistogram(): Cannot fill histograms with more than 3 dimensions\n";
-            exit(1);
+            stringstream error;
+            error << "BinTree::fillHistogram(): Cannot fill histograms with more than 3 dimensions";
+            throw runtime_error(error.str());
         }
         TH1* histo = (TH1*)m_gridConstraint->Clone("histoFromTree");
         int nbinsx = histo->GetNbinsX();
@@ -1281,8 +1483,7 @@ TH1* BinTree::fillHistogram()
         {
             BinLeaf* leaf = it->first;
             vector< vector<int> > bins = it->second;
-            vector< vector<double> > entries = leaf->getEntries();
-            vector< double > weights = leaf->getWeights();
+            const EntryList& entries = leaf->getEntries();
             int nbins = bins.size();
             for(int b=0;b<nbins;b++)
             {
@@ -1295,7 +1496,7 @@ TH1* BinTree::fillHistogram()
                     double y = h2f->GetYaxis()->GetBinCenter(by);
                     for(unsigned int e=0;e<entries.size();e++)
                     {
-                        double value = weights[e]/(double)nbins;
+                        double value = entries.weight(e)/(double)nbins;
                         h2f->Fill(x,y,value);
                     }
                 }
@@ -1310,7 +1511,7 @@ TH1* BinTree::fillHistogram()
                     double z = h3f->GetZaxis()->GetBinCenter(bz);
                     for(unsigned int e=0;e<entries.size();e++)
                     {
-                        double value = weights[e]/(double)nbins;
+                        double value = entries.weight(e)/(double)nbins;
                         h3f->Fill(x,y,z,value);
                     }
                 }
@@ -1325,13 +1526,15 @@ vector<TH1*> BinTree::fillWidths(const TH1* widthTemplate)
 {
         if(!widthTemplate && !m_gridConstraint)
         {
-            cerr<<"ERROR: BinLeaf::fillWidths(): Trying to fill width, but the binning is unknown. Please give a template histogram of define a gridConstraint.\n";
-            exit(1);
+            stringstream error;
+            error << "BinTree::fillWidths(): Trying to fill width, but the binning is unknown. Please give a template histogram of define a gridConstraint";
+            throw runtime_error(error.str());
         }
         if(m_ndim>3)
         {
-            cerr<<"ERROR: BinLeaf::fillWidths(): Cannot fill histograms with more than 3 dimensions\n";
-            exit(1);
+            stringstream error;
+            error << "BinTree::fillWidths(): Cannot fill histograms with more than 3 dimensions";
+            throw runtime_error(error.str());
         }
         vector<TH1*> widths;
         if(m_ndim==2)

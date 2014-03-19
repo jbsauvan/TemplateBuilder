@@ -155,36 +155,45 @@ void TemplateManager::loop()
 
             // first compute sum of weights
             nEntriesTot += nEntries;
-            double sumOfWeights = (double)nEntries;
-            if(weightForm)
+            double sumOfWeights = 0.;
+            for (Long64_t entry=0;entry<nEntries;entry++)
             {
-                sumOfWeights = 0.;
-                for (Long64_t entry=0;entry<nEntries;entry++)
+                Long64_t entryNumber = tree->GetEntryNumber(entry); 
+                tree->GetEntry(entryNumber);
+                double weight = 1.;
+                if(weightForm)
                 {
-                    Long64_t entryNumber = tree->GetEntryNumber(entry); 
-                    tree->GetEntry(entryNumber);
                     weightForm->GetNdata();
-                    double weight = weightForm->EvalInstance();
+                    weight = weightForm->EvalInstance();
                     if(!std::isfinite(weight))
                     {
                         std::cerr<<"[WARN]   Inf or NaN weight\n";
                     }
+                }
+                vector<double> point;
+                for(unsigned int v=0;v<tmp->numberOfDimensions();v++)
+                {
+                    varForms[v]->GetNdata();
+                    double varValue = varForms[v]->EvalInstance();
+                    if(!std::isfinite(varValue))
+                    {
+                        std::cerr<<"[WARN]   Inf or NaN variable\n";
+                    }
+                    point.push_back(varValue);
+                }
+                // This is the sum of weights of entries within the template boundaries
+                if(tmp->inTemplate(point))
+                {
                     sumOfWeights += weight;
                 }
-                if(sumOfWeights==0)
-                {
-                    std::cerr<<"[WARN]   Sum of weights = "<<sumOfWeights<<"\n";
-                }
-                //cout<<"Computing sum of weights: "<<nEntries<<"/"<<sumOfWeights<<"\n";
+            }
+            if(sumOfWeights==0)
+            {
+                std::cerr<<"[WARN]   Sum of weights = "<<sumOfWeights<<"\n";
             }
 
             for (Long64_t entry=0;entry<nEntries;entry++)
             {
-                //if(entry%10000==0)
-                //{
-                //    cout<<"[INFO] Getting entry "<<entry<<"/"<<nEntries<<"\n";
-                //}
-
                 Long64_t entryNumber = tree->GetEntryNumber(entry); 
                 tree->GetEntry(entryNumber);
                 assertForm.GetNdata();
@@ -259,6 +268,7 @@ void TemplateManager::save()
         // TMP: fill kernel widths
         //tmp->getWidth(0)->Write();
         //tmp->getWidth(1)->Write();
+        //tmp->getWidth(2)->Write();
     }
     // write control plots
     m_outputFile->mkdir("controlPlots");

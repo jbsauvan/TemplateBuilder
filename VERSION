@@ -1,4 +1,9 @@
-Latest version: 070314_add-fa3-configs
+Latest version: 190314_speedup-adap-bin
+
+* 190314_speedup-adap-bin
+  - Reduce adaptive binning processing time
+  - Use weights in stopping criterion
+  - Fix normalization of 1D distributions
 
 * 070314_add-fa3-configs
   - Add first fa3 template configurations

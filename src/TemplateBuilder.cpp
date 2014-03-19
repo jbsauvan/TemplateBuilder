@@ -414,6 +414,7 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
             tmp->getTemplate()->Scale(targetSumOfWeights/sumOfWeights);
             for(unsigned int axis=0;axis<tmp->numberOfDimensions();axis++)
             {
+                sumOfWeights = tmp->getRaw1DTemplate(axis)->GetSumOfWeights();
                 tmp->getRaw1DTemplate(axis)->Scale(targetSumOfWeights/sumOfWeights);
             }
         }

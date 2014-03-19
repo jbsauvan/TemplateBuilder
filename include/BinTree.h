@@ -9,6 +9,44 @@
 #include "TLine.h"
 #include "TH2F.h"
 
+class EntryList
+{
+    public:
+        EntryList(int ndim);
+        ~EntryList(){};
+
+        void add(const std::vector<double>& values, double weight);
+
+        unsigned int size() const;
+        unsigned int effectiveSize() const;
+        unsigned int dimension() const;
+        double sumOfWeights() const;
+        double sumOfWeightsError() const;
+        double maxWeight() const;
+        double value(unsigned int axis, int entry) const;
+        double weight(int entry) const;
+
+        void sort();
+
+        std::pair<EntryList, EntryList> split(unsigned int axis, double cut) const;
+        std::pair<int, int> entriesIfSplit(unsigned int axis, double cut) const;
+
+        std::vector<double> percentiles(const std::vector<double>& q, unsigned int axis=0) const;
+        double densityGradient(unsigned int axis=0, double q=10.) const;
+        void print();
+
+
+    private:
+        unsigned int m_ndim;
+        std::vector< std::vector< std::pair<double,int> > > m_sortedValues;
+        std::vector< std::vector<int> >  m_sortedPositions;
+        std::vector<double> m_weights;
+        double m_maxWeight;
+        double m_sumOfWeights;
+        double m_sumOfWeightsError;
+};
+
+
 class BinLeaf
 {
     /* Leaf of a BinTree.
@@ -33,14 +71,17 @@ class BinLeaf
         double getCenter(int axis=0);
         bool isNeighbor(BinLeaf* leaf);
         unsigned int getNEntries();
+        unsigned int effectiveNEntries();
         double getSumOfWeights();
-        const std::vector< std::vector<double> >& getEntries();
-        const std::vector< double >& getWeights();
+        const EntryList& getEntries();
+        //const std::vector< std::vector<double> >& getEntries();
+        //const std::vector< double >& getWeights();
         std::vector<double> percentiles(const std::vector<double>& q, unsigned int axis=0);
         double densityGradient(unsigned int axis=0, double q=10.);
-        double density(double xmin, double xmax, unsigned int axis=0);
         bool inBin(const std::vector<double>& xs);
         bool addEntry(const std::vector<double>& xsi, double wi);
+        void setEntries(const EntryList& entries);
+        void sortEntries();
         std::vector<TLine*> getBoundaryTLines();
 
         unsigned int index() const {return m_index;}
@@ -50,10 +91,7 @@ class BinLeaf
         unsigned int m_ndim;
         unsigned int m_index;
         std::vector< std::pair<double,double> > m_binBoundaries;
-        std::vector< std::vector<double> > m_entries;
-        std::vector<double> m_weights;
-
-
+        EntryList m_entryList;
 };
 
 
@@ -68,8 +106,8 @@ class BinTree
         double getMax(int axis=0);
         unsigned int getNEntries();
         double getSumOfWeights();
-        std::vector< std::vector<double> > getEntries();
-        std::vector< double > getWeights();
+        //std::vector< std::vector<double> > getEntries();
+        //std::vector< double > getWeights();
         BinLeaf* getLeaf(const std::vector<double>& xs);
         std::vector<BinLeaf*> getLeaves();
         std::vector<BinTree*> getTerminalNodes();

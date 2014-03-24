@@ -1,0 +1,97 @@
+// Configuration options
+{
+	"inputDirectory":"", // TO BE FILLED
+	"outputFile":"", // TO BE FILLED
+	// template definitions
+	"templates":[
+		// template 0+ 
+		{
+			"name":"template_0Plus",
+                        "files":[
+                                // TO BE FILLED
+                                ],
+                        "tree":"SelectedTree",
+			"variables":["D_g1_vs_g2_phi0","D_bkg"],
+			"weight":"MC_CV_weight[0]",
+			"selection":"ZZMass>106 && ZZMass<141",
+			"assertion":"D_g1_vs_g2_phi0 >= 0. && D_g1_vs_g2_phi0 <= 1.",
+			"binning":{
+				"type":"fixed",
+				"bins":[100,0.,1.,100,0.,1.]
+			},
+			"postprocessing":[
+				{"type":"smooth","kernel":"adaptive","entriesperbin":500},
+				{"type":"reweight", "axes":[0,1],
+					"rebinning":[
+						[0.0,0.01,0.02,0.04,0.06,0.08,0.1,0.12,0.14,0.16,0.18,0.2,0.22,0.24,0.26,0.28,0.3,0.32,0.34,0.36,0.38,0.4,0.42,0.44,0.45,0.46,0.47,0.48,0.49,0.5,0.51,0.52,0.54,0.56,0.58,0.6,0.62,0.64,0.66,0.68,0.70,0.72,0.74,0.76,0.78,0.8,0.82,0.84,0.86,0.88,0.9,0.92,0.94,0.96,0.98,0.99,1.],
+						[0.,0.01,0.02,0.04,0.08,0.20,0.30,0.4,0.5,0.56,0.6,0.64,0.68,0.7,0.72,0.74,0.76,0.78,0.8,0.82,0.84,0.86,0.88,0.9,0.91,0.92,0.93,0.94,0.95,0.96,0.97,0.98,0.99,1.]
+						]
+				},
+				{"type":"floor"}
+			]
+		},
+		// template 0h+ 
+		{
+			"name":"template_0hPlus",
+                        "files":[
+                                // TO BE FILLED
+                                ],
+                        "tree":"SelectedTree",
+			"variables":["D_g1_vs_g2_phi0","D_bkg"],
+			"weight":"MC_CV_weight[1]",
+			"selection":"ZZMass>106 && ZZMass<141",
+			"assertion":"D_g1_vs_g2_phi0 >= 0. && D_g1_vs_g2_phi0 <= 1.",
+			"binning":{
+				"type":"fixed",
+				"bins":[100,0.,1.,100,0.,1.]
+			},
+			"postprocessing":[
+				{"type":"smooth","kernel":"adaptive","entriesperbin":200},
+				{"type":"reweight", "axes":[0,1],
+					"rebinning":[
+						[0.0,0.01,0.02,0.04,0.06,0.08,0.1,0.12,0.14,0.16,0.18,0.2,0.22,0.24,0.26,0.28,0.3,0.32,0.34,0.36,0.38,0.4,0.42,0.44,0.45,0.46,0.47,0.48,0.49,0.5,0.51,0.52,0.54,0.56,0.58,0.6,0.62,0.64,0.66,0.68,0.70,0.72,0.74,0.76,0.78,0.8,0.82,0.84,0.86,0.88,0.9,0.92,0.94,0.96,0.98,0.99,1.],
+						[0.,0.01,0.02,0.04,0.08,0.20,0.30,0.4,0.5,0.56,0.6,0.64,0.68,0.7,0.72,0.74,0.76,0.78,0.8,0.82,0.84,0.86,0.88,0.9,0.91,0.92,0.93,0.94,0.95,0.96,0.97,0.98,0.99,1.]
+					]
+				},
+				{"type":"floor"},
+				{"type":"rescale","factor":0.900590551181}
+			]
+		},
+		// template fa2=0.5 
+		{
+			"name":"template_Mix",
+                        "files":[
+                                // TO BE FILLED
+                                ],
+                        "tree":"SelectedTree",
+			"variables":["D_g1_vs_g2_phi0","D_bkg"],
+			"weight":"MC_CV_weight[4]",
+			"selection":"ZZMass>106 && ZZMass<141",
+			"assertion":"D_g1_vs_g2_phi0 >= 0. && D_g1_vs_g2_phi0 <= 1.",
+			"binning":{
+				"type":"fixed",
+				"bins":[100,0.,1.,100,0.,1.]
+			},
+			"postprocessing":[
+				{"type":"smooth","kernel":"adaptive","entriesperbin":200},
+				{"type":"reweight", "axes":[0,1],
+					"rebinning":[
+						[0.0,0.01,0.02,0.04,0.06,0.08,0.1,0.12,0.14,0.16,0.18,0.2,0.22,0.24,0.26,0.28,0.3,0.32,0.34,0.36,0.38,0.4,0.42,0.44,0.45,0.46,0.47,0.48,0.49,0.5,0.51,0.52,0.54,0.56,0.58,0.6,0.62,0.64,0.66,0.68,0.70,0.72,0.74,0.76,0.78,0.8,0.82,0.84,0.86,0.88,0.9,0.92,0.94,0.96,0.98,0.99,1.],
+						[0.,0.01,0.02,0.04,0.08,0.20,0.30,0.4,0.5,0.56,0.6,0.64,0.68,0.7,0.72,0.74,0.76,0.78,0.8,0.82,0.84,0.86,0.88,0.9,0.91,0.92,0.93,0.94,0.95,0.96,0.97,0.98,0.99,1.]
+						]
+				},
+				{"type":"floor"},
+				{"type":"rescale","factor":3.61746338583}
+			]
+		},
+		// template interference 
+		{
+			"name":"template_Int",
+			"templatesum":[
+				{"name":"template_Mix","factor":1.},
+				{"name":"template_0Plus","factor":-1.},
+				{"name":"template_0hPlus","factor":-1.}
+			]
+		}
+	]
+}

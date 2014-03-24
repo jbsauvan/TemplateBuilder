@@ -1,4 +1,7 @@
-Latest version: 190314_speedup-adap-bin
+Latest version: 240314_add-fa2-configs
+
+* 240314_add-fa2-configs
+  - Add configuration files for fa2
 
 * 190314_speedup-adap-bin
   - Reduce adaptive binning processing time

@@ -2,6 +2,7 @@
 #include "TemplateBuilder.h"
 #include "BinTree.h"
 #include "GaussKernelSmoother.h"
+#include "Interpolator1D.h"
 
 #include "TH2F.h"
 #include "TH3F.h"
@@ -793,6 +794,11 @@ void TemplateBuilder::applyReweighting(Template* tmp, const PostProcessing& pp)
             refHisto = refHistoSmooth;
             delete refHistoRebin;
             delete refGraph;
+        }
+        else // No rebinning. Automatic procedure
+        {
+            Interpolator1D interpolator;
+            refHisto = interpolator.interpolate(refHisto);
         }
         unsigned int nbins = refHisto->GetNbinsX();
         for(unsigned int b=1;b<=nbins;b++)

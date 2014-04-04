@@ -384,14 +384,15 @@ void Template::makeProjectionControlPlot(const string& tag)
         TH1D* raw1D = dynamic_cast<TH1D*>(getRaw1DTemplate(axis)->Clone(rawName.str().c_str()));
         TH1D* proj1D = dynamic_cast<TH1D*>(getProjected1DTemplate(axis));
         proj1D->SetName(projName.str().c_str());
-        raw1D->SetLineColor(kRed);
-        raw1D->SetLineWidth(2);
-        proj1D->SetLineColor(kBlack);
-        proj1D->SetMarkerColor(kBlack);
-        proj1D->SetMarkerStyle(20);
+        proj1D->SetLineColor(kRed);
+        proj1D->SetLineWidth(2);
+        raw1D->SetLineColor(kBlack);
+        raw1D->SetMarkerColor(kBlack);
+        raw1D->SetMarkerStyle(20);
         raw1D->SetXTitle(getVariable(axis).c_str());
-        raw1D->Draw("hist");
-        proj1D->Draw("same");
+        //raw1D->Draw("hist");
+        raw1D->Draw();
+        proj1D->Draw("hist same");
         addControlPlot(c);
     }
 }

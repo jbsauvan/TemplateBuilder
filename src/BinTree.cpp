@@ -1135,6 +1135,7 @@ void BinTree::build()
     m_leaf->sortEntries();
     // If the tree already contains too small number of entries, it does nothing
     //if(getNEntries()<2.*m_minLeafEntries)
+    //cerr<<"Effective number of entries = "<<m_leaf->effectiveNEntries()<<"\n";
     if(m_leaf->effectiveNEntries()<2.*m_minLeafEntries)
     {
         cout<<"[WARN] Total effective number of entries = "<<m_leaf->effectiveNEntries()<<" < 2 x "<<m_minLeafEntries<<". The procedure stops with one single bin\n";

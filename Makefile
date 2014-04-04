@@ -19,6 +19,7 @@ SRCPP = main.cpp\
 	json_writer.cpp\
 	BinTree.cpp\
 	GaussKernelSmoother.cpp\
+	Interpolator1D.cpp\
 	Template.cpp\
 	TemplateManager.cpp\
 	TemplateBuilder.cpp\

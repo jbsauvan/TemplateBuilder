@@ -543,11 +543,11 @@ void Interpolator1D::constrainInterpolation()
     TH1D* interpHisto = histoFromGraph(m_interpGraph, m_rawHisto);
     double chi2Histo = chi2(m_rawHisto, interpHisto);
     int ndf = m_rawHisto->GetNbinsX() - m_interpGraph->GetN();
-    double chi2oNdf = chi2Histo/(double)ndf;
+    double chi2oNdf = (ndf>0 ? chi2Histo/(double)ndf : chi2Histo);
     interpHisto->Delete();
     vector<int> constrainedBins;
     // if the chi2 is bad, try to constrain the interpolation with additional points
-    while(chi2oNdf>2. && m_interpGraph->GetN()<m_rawHisto->GetNbinsX())
+    while(chi2oNdf>2. && ndf>0)
     {
         //cout<<" Starting chi2oNdf="<<chi2oNdf<<"\n";
         int nbins = m_rawHisto->GetNbinsX();
@@ -596,7 +596,7 @@ void Interpolator1D::constrainInterpolation()
                 interpHisto = histoFromGraph(graphTmp, m_rawHisto);
                 double c2 = chi2(m_rawHisto, interpHisto);
                 ndf = m_rawHisto->GetNbinsX() - graphTmp->GetN();
-                double c2oNdf = c2/(double)ndf;
+                double c2oNdf = (ndf>0 ? c2/(double)ndf : c2);
                 //cerr<<", c2oNdf="<<c2oNdf<<"\n";
                 if(c2oNdf<minChi2oNdf)
                 {
@@ -615,7 +615,7 @@ void Interpolator1D::constrainInterpolation()
             interpHisto = histoFromGraph(m_interpGraph, m_rawHisto);
             chi2Histo = chi2(m_rawHisto, interpHisto);
             ndf = m_rawHisto->GetNbinsX() - m_interpGraph->GetN();
-            chi2oNdf = chi2Histo/(double)ndf;
+            chi2oNdf = (ndf>0 ? chi2Histo/(double)ndf : chi2Histo);
             //cerr<<"  Best constraint="<<m_rawHisto->GetXaxis()->GetBinCenter(bestPos)<<",y="<<bestShift<<"\n";
             //cerr<<" "<<m_interpGraph->GetN()<<" points "<<" ---> nomchi2="<<chi2oNdf<<"\n";
             interpHisto->Delete();
@@ -623,8 +623,9 @@ void Interpolator1D::constrainInterpolation()
 
     }
     constrainedBins.clear();
+    ndf = m_rawHisto->GetNbinsX() - m_interpGraph->GetN();
     // Try to constrain two consecutive points if the chi2 is still too bad
-    while(chi2oNdf>5. && m_interpGraph->GetN()<m_rawHisto->GetNbinsX())
+    while(chi2oNdf>5. && ndf>1)
     {
         int nbins = m_rawHisto->GetNbinsX();
         interpHisto = histoFromGraph(m_interpGraph, m_rawHisto);
@@ -677,7 +678,7 @@ void Interpolator1D::constrainInterpolation()
                 interpHisto = histoFromGraph(graphTmp, m_rawHisto);
                 double c2 = chi2(m_rawHisto, interpHisto);
                 ndf = m_rawHisto->GetNbinsX() - graphTmp->GetN();
-                double c2oNdf = c2/(double)ndf;
+                double c2oNdf = (ndf>0 ? c2/(double)ndf : c2);
                 //cerr<<", c2oNdf="<<c2oNdf<<"\n";
                 if(c2oNdf<minChi2oNdf)
                 {
@@ -695,7 +696,9 @@ void Interpolator1D::constrainInterpolation()
             m_interpGraph = addPointToGraph(m_interpGraph, x1, bestShift1, 0.,0., error1, error1);
             m_interpGraph = addPointToGraph(m_interpGraph, x2, bestShift2, 0.,0., error2, error2);
             interpHisto = histoFromGraph(m_interpGraph, m_rawHisto);
-            chi2oNdf = chi2(m_rawHisto, interpHisto);
+            chi2Histo = chi2(m_rawHisto, interpHisto);
+            ndf = m_rawHisto->GetNbinsX() - m_interpGraph->GetN();
+            chi2oNdf = (ndf>0 ? chi2Histo/(double)ndf : chi2Histo);
             //cerr<<"  Best constraint is x1="<<x1<<",y1="<<bestShift1<<"\n";
             //cerr<<"                 and x2="<<x2<<",y2="<<bestShift2<<"\n";
             //cout<<" "<<m_interpGraph->GetN()<<" points "<<" ---> nomchi2="<<chi2oNdf<<"\n";
@@ -810,8 +813,8 @@ TH1D* Interpolator1D::interpolate(TH1D* rawHisto)
 
     double chi2Histo = chi2(m_rawHisto, m_interpHisto);
     int ndf = m_rawHisto->GetNbinsX() - m_interpGraph->GetN();
-    double chi2oNdf = chi2Histo/(double)ndf;
-    cout<<"[INFO]     chi2/ndf(ref-raw) = "<<chi2oNdf<<"\n";
+    double chi2oNdf = (ndf>0 ? chi2Histo/(double)ndf : chi2Histo);
+    cout<<"[INFO]     chi2/ndf(ref-raw) = "<<chi2Histo<<"/"<<ndf<<" = "<<chi2oNdf<<"\n";
 
     //cerr<<"Diff integral = "<<(m_interpHisto->GetSumOfWeights() - m_rawHisto->GetSumOfWeights())/m_rawHisto->GetSumOfWeights()<<"\n";
     // if difference of normalisation with raw distribution > 5%, correct local bias

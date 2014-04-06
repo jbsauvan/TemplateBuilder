@@ -1,4 +1,10 @@
-Latest version: 250314_update-fa3-configs
+Latest version: 060414_prelim2-auto-reweight
+
+* 060414_prelim2-auto-reweight
+  - Bugfix preliminary automatized rebinning and interpolation procedure for 1D reweighting
+
+* 040414_prelim-auto-reweight
+  - Implement !preliminary! automatized rebinning and interpolation procedure for 1D reweighting. 
 
 * 250314_update-fa3-configs
   - Update configuration files for fa3

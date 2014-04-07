@@ -111,7 +111,12 @@ TH1D* Interpolator1D::histoFromGraph(TGraphAsymmErrors* graph, TH1D* templateHis
         else
         {
             value = graph->Eval(x,0, "S"); // Cubic splines interpolation
+            if(!std::isfinite(value)) // Linear interpolation backup in case of crazy output
+            {
+                value = graph->Eval(x);
+            }
         }
+        //cerr<<" interp histo value ("<<b<<")="<<value<<"\n";
         histo->SetBinContent(b, value);
         histo->SetBinError(b, 0.);
     }
@@ -558,9 +563,10 @@ void Interpolator1D::constrainInterpolation()
             double value  = m_rawHisto->GetBinContent(b);
             double error  = m_rawHisto->GetBinError(b);
             double interp = interpHisto->GetBinContent(b);
-            if(value>0 && find(constrainedBins.begin(), constrainedBins.end(), b)==constrainedBins.end())
+            if(value>0 && (value-interp)>0 && find(constrainedBins.begin(), constrainedBins.end(), b)==constrainedBins.end())
             {
                 diffAndPos.push_back( make_pair(fabs(value-interp)/error, b) );
+                //cerr<<"  Can constrain bin "<<b<<" diff = "<<fabs(value-interp)/error<<"\n";
             }
             
             //if(value>0 && fabs(value-interp)/error > maxDiff && find(constrainedBins.begin(), constrainedBins.end(), b)==constrainedBins.end())
@@ -596,8 +602,12 @@ void Interpolator1D::constrainInterpolation()
                 interpHisto = histoFromGraph(graphTmp, m_rawHisto);
                 double c2 = chi2(m_rawHisto, interpHisto);
                 ndf = m_rawHisto->GetNbinsX() - graphTmp->GetN();
+                if(!std::isfinite(c2)) // Protection against crazy interpolations
+                {
+                    c2 = 1.e8; 
+                }
                 double c2oNdf = (ndf>0 ? c2/(double)ndf : c2);
-                //cerr<<", c2oNdf="<<c2oNdf<<"\n";
+                //cerr<<", c2oNdf="<<c2<<"/"<<ndf<<"="<<c2oNdf<<"\n";
                 if(c2oNdf<minChi2oNdf)
                 {
                     bestShift = shiftedValue;
@@ -608,6 +618,8 @@ void Interpolator1D::constrainInterpolation()
                 graphTmp->Delete();
             }
         }
+        //cerr<<"  Pushing bin "<<bestPos<<" to constrained bins\n";
+        if(bestPos==0 && ncands>0) bestPos = diffAndPos[ncands-1].second; // protection if for some reason no best constraint is found
         constrainedBins.push_back(bestPos);
         if(minChi2oNdf<chi2oNdf)
         {
@@ -678,6 +690,10 @@ void Interpolator1D::constrainInterpolation()
                 interpHisto = histoFromGraph(graphTmp, m_rawHisto);
                 double c2 = chi2(m_rawHisto, interpHisto);
                 ndf = m_rawHisto->GetNbinsX() - graphTmp->GetN();
+                if(!std::isfinite(c2)) // Protection against crazy interpolations
+                {
+                    c2 = 1.e8; 
+                }
                 double c2oNdf = (ndf>0 ? c2/(double)ndf : c2);
                 //cerr<<", c2oNdf="<<c2oNdf<<"\n";
                 if(c2oNdf<minChi2oNdf)
@@ -815,6 +831,10 @@ TH1D* Interpolator1D::interpolate(TH1D* rawHisto)
     int ndf = m_rawHisto->GetNbinsX() - m_interpGraph->GetN();
     double chi2oNdf = (ndf>0 ? chi2Histo/(double)ndf : chi2Histo);
     cout<<"[INFO]     chi2/ndf(ref-raw) = "<<chi2Histo<<"/"<<ndf<<" = "<<chi2oNdf<<"\n";
+    if(chi2oNdf>5)
+    {
+        cout<<"[WARN]     The reference histogram used for reweighting seems not good. Please check the produced control plot in the output file.\n";
+    }
 
     //cerr<<"Diff integral = "<<(m_interpHisto->GetSumOfWeights() - m_rawHisto->GetSumOfWeights())/m_rawHisto->GetSumOfWeights()<<"\n";
     // if difference of normalisation with raw distribution > 5%, correct local bias

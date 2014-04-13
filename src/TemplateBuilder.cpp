@@ -2,7 +2,7 @@
 #include "TemplateBuilder.h"
 #include "BinTree.h"
 #include "GaussKernelSmoother.h"
-#include "Interpolator1D.h"
+#include "Smoother1D.h"
 
 #include "TH2F.h"
 #include "TH3F.h"
@@ -80,9 +80,11 @@ void TemplateBuilder::fillTemplates()
             if(tmp->numberOfDimensions()==2)
             {
                 TH2F* histo = dynamic_cast<TH2F*>(tmp->getTemplate());
+                TH2F* histoRaw = dynamic_cast<TH2F*>(tmp->getRawTemplate());
                 for(unsigned int e=0;e<tmp->entries().size();e++)
                 {
                     int bin = histo->Fill(tmp->entries()[e][0],tmp->entries()[e][1],tmp->weights()[e]);
+                    histoRaw->Fill(tmp->entries()[e][0],tmp->entries()[e][1],tmp->weights()[e]);
                     if(bin!=-1)
                     {
                         tmp->getRaw1DTemplate(0)->Fill(tmp->entries()[e][0], tmp->weights()[e]);
@@ -97,9 +99,11 @@ void TemplateBuilder::fillTemplates()
             else if(tmp->numberOfDimensions()==3)
             {
                 TH3F* histo = dynamic_cast<TH3F*>(tmp->getTemplate());
+                TH3F* histoRaw = dynamic_cast<TH3F*>(tmp->getRawTemplate());
                 for(unsigned int e=0;e<tmp->entries().size();e++)
                 {
                     int bin = histo->Fill(tmp->entries()[e][0],tmp->entries()[e][1],tmp->entries()[e][2],tmp->weights()[e]);
+                    histoRaw->Fill(tmp->entries()[e][0],tmp->entries()[e][1],tmp->entries()[e][2],tmp->weights()[e]);
                     if(bin!=-1)
                     {
                         tmp->getRaw1DTemplate(0)->Fill(tmp->entries()[e][0], tmp->weights()[e]);
@@ -122,16 +126,20 @@ void TemplateBuilder::fillTemplates()
             cout<< "[INFO] Deriving adaptive binning for "<<tmp->numberOfDimensions()<<"D template '"<<tmp->getName()<<"'\n";
             if(tmp->numberOfDimensions()==2)
             {
+                TH2F* histoRaw = dynamic_cast<TH2F*>(tmp->getRawTemplate());
                 for(unsigned int e=0;e<tmp->entries().size();e++)
                 {
+                    histoRaw->Fill(tmp->entries()[e][0],tmp->entries()[e][1],tmp->weights()[e]);
                     tmp->getRaw1DTemplate(0)->Fill(tmp->entries()[e][0], tmp->weights()[e]);
                     tmp->getRaw1DTemplate(1)->Fill(tmp->entries()[e][1], tmp->weights()[e]);
                 }
             }
             else if(tmp->numberOfDimensions()==3)
             {
+                TH3F* histoRaw = dynamic_cast<TH3F*>(tmp->getRawTemplate());
                 for(unsigned int e=0;e<tmp->entries().size();e++)
                 {
+                    histoRaw->Fill(tmp->entries()[e][0],tmp->entries()[e][1],tmp->entries()[e][2],tmp->weights()[e]);
                     tmp->getRaw1DTemplate(0)->Fill(tmp->entries()[e][0], tmp->weights()[e]);
                     tmp->getRaw1DTemplate(1)->Fill(tmp->entries()[e][1], tmp->weights()[e]);
                     tmp->getRaw1DTemplate(2)->Fill(tmp->entries()[e][2], tmp->weights()[e]);
@@ -241,6 +249,10 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
                             throw runtime_error(error.str());
                         }
                         tmp->makeProjectionControlPlot("afterSmooth");
+                        tmp->makeResidualsControlPlot("afterSmooth");
+                        tmp->makeResidualsControlPlot("afterSmooth", 2);
+                        tmp->makeResidualsControlPlot("afterSmooth", 5);
+                        tmp->makeResidualsControlPlot("afterSmooth", 10);
                         break;
                     }
                 case PostProcessing::Type::MIRROR:
@@ -333,6 +345,10 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
                             }
                         }
                         tmp->makeProjectionControlPlot("afterMirror");
+                        tmp->makeResidualsControlPlot("afterMirror");
+                        tmp->makeResidualsControlPlot("afterMirror", 2);
+                        tmp->makeResidualsControlPlot("afterMirror", 5);
+                        tmp->makeResidualsControlPlot("afterMirror", 10);
                         break;
                     }
                 case PostProcessing::Type::FLOOR:
@@ -373,6 +389,10 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
                             }
                         }
                         tmp->makeProjectionControlPlot("afterFloor");
+                        tmp->makeResidualsControlPlot("afterFloor");
+                        tmp->makeResidualsControlPlot("afterFloor", 2);
+                        tmp->makeResidualsControlPlot("afterFloor", 5);
+                        tmp->makeResidualsControlPlot("afterFloor", 10);
                         break;
                     }
                 case PostProcessing::Type::RESCALE:
@@ -386,6 +406,10 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
                         cout<<"[INFO] Reweighting template '"<<tmp->getName()<<"'\n";
                         applyReweighting(tmp,*it);
                         tmp->makeProjectionControlPlot("afterReweight");
+                        tmp->makeResidualsControlPlot("afterReweight");
+                        tmp->makeResidualsControlPlot("afterReweight", 2);
+                        tmp->makeResidualsControlPlot("afterReweight", 5);
+                        tmp->makeResidualsControlPlot("afterReweight", 10);
                         break;
                     }
                 default:
@@ -413,6 +437,8 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
             }
             double sumOfWeights = tmp->getTemplate()->GetSumOfWeights();
             tmp->getTemplate()->Scale(targetSumOfWeights/sumOfWeights);
+            sumOfWeights = tmp->getRawTemplate()->GetSumOfWeights();
+            tmp->getRawTemplate()->Scale(targetSumOfWeights/sumOfWeights);
             for(unsigned int axis=0;axis<tmp->numberOfDimensions();axis++)
             {
                 sumOfWeights = tmp->getRaw1DTemplate(axis)->GetSumOfWeights();
@@ -424,12 +450,17 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
         {
             cout<<"[INFO] Rescaling template '"<<tmp->getName()<<"' with factor "<<scaleFactor<<"\n";
             tmp->getTemplate()->Scale(scaleFactor);
+            tmp->getRawTemplate()->Scale(scaleFactor);
             for(unsigned int axis=0;axis<tmp->numberOfDimensions();axis++)
             {
                 tmp->getRaw1DTemplate(axis)->Scale(scaleFactor);
             }
         }
         tmp->makeProjectionControlPlot("afterNormalization");
+        tmp->makeResidualsControlPlot("afterNormalization");
+        tmp->makeResidualsControlPlot("afterNormalization", 2);
+        tmp->makeResidualsControlPlot("afterNormalization", 5);
+        tmp->makeResidualsControlPlot("afterNormalization", 10);
     }
 
 }
@@ -465,9 +496,11 @@ void TemplateBuilder::buildTemplatesFromTemplates()
             {
                 cout<<"[INFO]   + ("<<factor<<") x "<<inTmp->getName()<<"\n";
                 tmp->setTemplate(inTmp->getTemplate());
+                tmp->setRawTemplate(inTmp->getRawTemplate());
                 tmp->getTemplate()->Scale(factor);
                 tmp->setWidths(inTmp->getWidths());
                 tmp->setRaw1DTemplates(inTmp->getRaw1DTemplates());
+                tmp->setRaw2DTemplates(inTmp->getRaw2DTemplates());
                 vector<string> vars;
                 for(unsigned int v=0;v<inTmp->numberOfDimensions();v++)
                 {
@@ -797,8 +830,8 @@ void TemplateBuilder::applyReweighting(Template* tmp, const PostProcessing& pp)
         }
         else // No rebinning. Automatic procedure
         {
-            Interpolator1D interpolator;
-            refHisto = interpolator.interpolate(refHisto);
+            Smoother1D smoother;
+            refHisto = smoother.smooth(refHisto);
         }
         unsigned int nbins = refHisto->GetNbinsX();
         for(unsigned int b=1;b<=nbins;b++)

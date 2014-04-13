@@ -192,6 +192,9 @@ void TemplateParameters::readTemplate(const Json::Value& tmp)
             minmax.push_back( make_pair(bins[v*3+1].asDouble(),bins[v*3+2].asDouble()) );
         }
         m_templates.back()->createTemplate(nbins, minmax);
+        //  what to do with overflows
+        bool fillOverflows = tmp.get("filloverflows", false).asBool();
+        m_templates.back()->setFillOverflows(fillOverflows);
     }
 
     // postprocessing 

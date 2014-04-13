@@ -21,6 +21,7 @@
 #define TEMPLATE_H
 
 #include <TH1.h>
+#include <TH2D.h>
 #include "TCanvas.h"
 
 #include <boost/any.hpp>
@@ -112,9 +113,13 @@ class Template
         BinningType getBinningType() const {return m_binningType;}
         unsigned int getEntriesPerBin() const {return m_entriesPerBin;}
         TH1* getTemplate() const {return m_template;}
+        TH1* getRawTemplate() const {return m_rawTemplate;}
         TH1D* getRaw1DTemplate(unsigned int axis=0) const {return m_raw1DTemplates[axis];}
         const std::vector<TH1D*>& getRaw1DTemplates() const {return m_raw1DTemplates;}
+        TH2D* getRaw2DTemplate(unsigned int axis=0) const {return m_raw2DTemplates[axis];}
+        const std::vector<TH2D*>& getRaw2DTemplates() const {return m_raw2DTemplates;}
         TH1D* getProjected1DTemplate(unsigned int axis=0);
+        TH2D* getProjected2DTemplate(unsigned int axis1=0, unsigned int axi2=1);
         const std::vector< std::pair<double,double> >& getMinMax() const {return m_minmax;} 
         const std::vector<TH1*>& getWidths() const {return m_widths;}
         TH1* getWidth(int axis=0) const {return m_widths[axis];}
@@ -130,6 +135,7 @@ class Template
         const std::vector<double>& weights() const {return m_weights;}
         double originalSumOfWeights() const {return m_originalSumOfWeights;}
         bool conserveSumOfWeights() const {return m_conserveSumOfWeights;}
+        bool fillOverflows() const {return m_fillOverflows;}
         std::vector<PostProcessing>::iterator postProcessingBegin() {return m_postProcessings.begin();}
         std::vector<PostProcessing>::iterator postProcessingEnd() {return m_postProcessings.end();}
         std::vector<TCanvas*>::iterator controlPlotsBegin() {return m_controlPlots.begin();}
@@ -150,7 +156,9 @@ class Template
         void addPostProcessing(PostProcessing postProcess) {m_postProcessings.push_back(postProcess);}
         void createTemplate(const std::vector<unsigned int>& nbins, const std::vector< std::pair<double,double> >& minmax);
         void setTemplate(const TH1* histo);
+        void setRawTemplate(const TH1* histo);
         void setRaw1DTemplates(const std::vector<TH1D*>& histo);
+        void setRaw2DTemplates(const std::vector<TH2D*>& histo);
         void setWidths(const std::vector<TH1*>& width);
         void setRescaling(double scaleFactor) {m_scaleFactor = scaleFactor;}
         bool inTemplate(const std::vector<double>& vs);
@@ -158,8 +166,10 @@ class Template
         void reweight1D(unsigned int axis, unsigned int bin, double weight);
         void setOriginalSumOfWeights(double sumOfWeights) {m_originalSumOfWeights = sumOfWeights;}
         void setConserveSumOfWeights(bool conserve) {m_conserveSumOfWeights = conserve;}
+        void setFillOverflows(bool overflows) {m_fillOverflows = overflows;}
         // control plot methods
         void makeProjectionControlPlot(const std::string& tag);
+        void makeResidualsControlPlot(const std::string& tag, unsigned int rebin=1);
         void addControlPlot(TCanvas* plot) {m_controlPlots.push_back(plot);}
 
 
@@ -175,7 +185,9 @@ class Template
         std::vector<std::string> m_variables;
         BinningType m_binningType;
         TH1* m_template;
+        TH1* m_rawTemplate;
         std::vector<TH1D*> m_raw1DTemplates;
+        std::vector<TH2D*> m_raw2DTemplates;
         std::vector< std::pair<double,double> > m_minmax;
         std::vector<TH1*> m_widths;
         unsigned int m_entriesPerBin;
@@ -185,6 +197,7 @@ class Template
         std::vector< double > m_weights;
         double m_originalSumOfWeights;
         bool m_conserveSumOfWeights;
+        bool m_fillOverflows;
 
         std::vector<TCanvas*> m_controlPlots;
 

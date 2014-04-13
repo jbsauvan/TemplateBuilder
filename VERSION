@@ -1,4 +1,8 @@
-Latest version: 060414_prelim2-auto-reweight
+Latest version: 130414_auto-reweight
+
+* 130414_auto-reweight
+  - Finalize automatized reweighting procedure
+  - Possibility to fill overflows in boundary bins
 
 * 060414_prelim2-auto-reweight
   - Bugfix preliminary automatized rebinning and interpolation procedure for 1D reweighting

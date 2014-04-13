@@ -212,6 +212,19 @@ void TemplateManager::loop()
                     {
                         std::cerr<<"[WARN]   Inf or NaN variable\n";
                     }
+                    if(tmp->fillOverflows())
+                    {
+                        double mini = tmp->getMinMax()[v].first;
+                        double maxi = tmp->getMinMax()[v].second;
+                        if(varValue<mini)
+                        {
+                            varValue = mini + (maxi-mini)/10000.;
+                        }
+                        else if(varValue>=maxi)
+                        {
+                            varValue = maxi - (maxi-mini)/10000.;
+                        }
+                    }
                     point.push_back(varValue);
                 }
                 double weight = 1.;
@@ -266,8 +279,8 @@ void TemplateManager::save()
         tmp->getTemplate()->Write();
 
         // TMP: fill kernel widths
-        //tmp->getWidth(0)->Write();
-        //tmp->getWidth(1)->Write();
+        tmp->getWidth(0)->Write();
+        tmp->getWidth(1)->Write();
         //tmp->getWidth(2)->Write();
     }
     // write control plots

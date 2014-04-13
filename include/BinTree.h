@@ -124,6 +124,8 @@ class BinTree
         std::vector<TLine*> getBoundaryTLines();
         TH1* fillHistogram();
         std::vector<TH1*> fillWidths(const TH1* widthTemplate=NULL);
+        std::vector<TH1*> fillWidthsLowStat(const TH1* widthTemplate=NULL);
+        std::vector<TH1*> fillWidthsHighStat(const TH1* widthTemplate=NULL);
 
         BinLeaf* leaf(){return m_leaf;}
         void setGridConstraint(TH1* gridConstraint);

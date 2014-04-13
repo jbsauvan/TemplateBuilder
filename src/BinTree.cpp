@@ -1521,35 +1521,107 @@ TH1* BinTree::fillHistogram()
         return histo;
 }
 
+
 /*****************************************************************/
-vector<TH1*> BinTree::fillWidths(const TH1* widthTemplate)
+vector<TH1*> BinTree::fillWidthsHighStat(const TH1* widthTemplate)
 /*****************************************************************/
 {
-        if(!widthTemplate && !m_gridConstraint)
+    if(!widthTemplate && !m_gridConstraint)
+    {
+        stringstream error;
+        error << "BinTree::fillWidths(): Trying to fill width, but the binning is unknown. Please give a template histogram or define a gridConstraint";
+        throw runtime_error(error.str());
+    }
+    if(m_ndim>3)
+    {
+        stringstream error;
+        error << "BinTree::fillWidths(): Cannot fill histograms with more than 3 dimensions";
+        throw runtime_error(error.str());
+    }
+    vector<TH1*> widths;
+    if(m_ndim==2)
+    {
+        const TH1* gridRef = (widthTemplate ? widthTemplate : m_gridConstraint);
+        TH1* hWidthX = (TH1*)gridRef->Clone("widthXFromTree");
+        TH1* hWidthY = (TH1*)gridRef->Clone("widthYFromTree");
+        int nbinsx = hWidthX->GetNbinsX();
+        int nbinsy = hWidthX->GetNbinsY();
+        int counter = 0;
+        int total = nbinsx*nbinsy;
+        for(int bx=1;bx<nbinsx+1;bx++) 
         {
-            stringstream error;
-            error << "BinTree::fillWidths(): Trying to fill width, but the binning is unknown. Please give a template histogram of define a gridConstraint";
-            throw runtime_error(error.str());
-        }
-        if(m_ndim>3)
-        {
-            stringstream error;
-            error << "BinTree::fillWidths(): Cannot fill histograms with more than 3 dimensions";
-            throw runtime_error(error.str());
-        }
-        vector<TH1*> widths;
-        if(m_ndim==2)
-        {
-            const TH1* gridRef = (widthTemplate ? widthTemplate : m_gridConstraint);
-            TH1* hWidthX = (TH1*)gridRef->Clone("widthXFromTree");
-            TH1* hWidthY = (TH1*)gridRef->Clone("widthYFromTree");
-            int nbinsx = hWidthX->GetNbinsX();
-            int nbinsy = hWidthX->GetNbinsY();
-            int counter = 0;
-            int total = nbinsx*nbinsy;
-            for(int bx=1;bx<nbinsx+1;bx++) 
+            for(int by=1;by<nbinsy+1;by++)
             {
-                for(int by=1;by<nbinsy+1;by++)
+                counter++;
+                if(counter % (total/100) == 0)
+                {
+                    double ratio  =  (double)counter/(double)total;
+                    int   c      =  ratio * 50;
+                    cout << "[INFO]   "<< setw(3) << (int)(ratio*100) << "% [";
+                    for (int x=0; x<c; x++) cout << "=";
+                    for (int x=c; x<50; x++) cout << " ";
+                    cout << "]\r" << flush;
+                }
+                double x = hWidthX->GetXaxis()->GetBinCenter(bx);
+                double y = hWidthX->GetYaxis()->GetBinCenter(by);
+                vector<double> point;
+                point.push_back(x);
+                point.push_back(y);
+                //cout<<"Computing width for ("<<x<<","<<y<<")\n";
+                BinLeaf* leaf = getLeaf(point);
+                vector<BinLeaf*> neighborLeaves = findNeighborLeaves(leaf);
+                neighborLeaves.push_back(leaf);
+                vector<BinLeaf*>::iterator itLeaf = neighborLeaves.begin();
+                vector<BinLeaf*>::iterator itELeaf = neighborLeaves.end();
+                double sumw = 0.;
+                double sumwx = 0.;
+                double sumwy = 0.;
+                //cout<<" "<<neighborLeaves.size()<<" neighbor leaves\n";
+                for(;itLeaf!=itELeaf;++itLeaf)
+                {
+                    double xi = (*itLeaf)->getCenter(0);
+                    double yi = (*itLeaf)->getCenter(1);
+                    double dx = fabs(xi-x);
+                    double dy = fabs(yi-y);
+                    double wxi = (*itLeaf)->getWidth(0);
+                    double wyi = (*itLeaf)->getWidth(1);
+                    if(dx<0.05*wxi) dx = 0.05*wxi;
+                    if(dy<0.05*wyi) dy = 0.05*wyi;
+                    double dr2 = dx*dx+dy*dy;
+                    double dr = sqrt(dr2);
+                    sumw += 1./dr;
+                    sumwx += wxi/dr;
+                    sumwy += wyi/dr;
+                    //cout<<"  Neighbor leaf dx="<<dx<<",dy="<<dy<<",w="<<1./dr2<<"\n";
+                }
+                double widthx = sumwx/sumw;
+                double widthy = sumwy/sumw;
+                //cout<<" Width x="<<widthx<<",y="<<widthy<<"\n";
+                hWidthX->SetBinContent(bx,by,widthx);
+                hWidthY->SetBinContent(bx,by,widthy);
+                hWidthX->SetBinError(bx,by,0.);
+                hWidthY->SetBinError(bx,by,0.);
+            }
+        }
+        widths.push_back(hWidthX);
+        widths.push_back(hWidthY);
+    }
+    else if(m_ndim==3)
+    {
+        const TH1* gridRef = (widthTemplate ? widthTemplate : m_gridConstraint);
+        TH1* hWidthX = (TH1*)gridRef->Clone("widthXFromTree");
+        TH1* hWidthY = (TH1*)gridRef->Clone("widthYFromTree");
+        TH1* hWidthZ = (TH1*)gridRef->Clone("widthZFromTree");
+        int nbinsx = hWidthX->GetNbinsX();
+        int nbinsy = hWidthX->GetNbinsY();
+        int nbinsz = hWidthX->GetNbinsZ();
+        int counter = 0;
+        int total = nbinsx*nbinsy*nbinsz;
+        for(int bx=1;bx<nbinsx+1;bx++) 
+        {
+            for(int by=1;by<nbinsy+1;by++)
+            {
+                for(int bz=1;bz<nbinsz+1;bz++)
                 {
                     counter++;
                     if(counter % (total/100) == 0)
@@ -1563,9 +1635,11 @@ vector<TH1*> BinTree::fillWidths(const TH1* widthTemplate)
                     }
                     double x = hWidthX->GetXaxis()->GetBinCenter(bx);
                     double y = hWidthX->GetYaxis()->GetBinCenter(by);
+                    double z = hWidthX->GetZaxis()->GetBinCenter(bz);
                     vector<double> point;
                     point.push_back(x);
                     point.push_back(y);
+                    point.push_back(z);
                     //cout<<"Computing width for ("<<x<<","<<y<<")\n";
                     BinLeaf* leaf = getLeaf(point);
                     vector<BinLeaf*> neighborLeaves = findNeighborLeaves(leaf);
@@ -1575,123 +1649,262 @@ vector<TH1*> BinTree::fillWidths(const TH1* widthTemplate)
                     double sumw = 0.;
                     double sumwx = 0.;
                     double sumwy = 0.;
+                    double sumwz = 0.;
                     //cout<<" "<<neighborLeaves.size()<<" neighbor leaves\n";
                     for(;itLeaf!=itELeaf;++itLeaf)
                     {
                         double xi = (*itLeaf)->getCenter(0);
                         double yi = (*itLeaf)->getCenter(1);
+                        double zi = (*itLeaf)->getCenter(2);
                         double dx = fabs(xi-x);
                         double dy = fabs(yi-y);
+                        double dz = fabs(zi-z);
                         double wxi = (*itLeaf)->getWidth(0);
                         double wyi = (*itLeaf)->getWidth(1);
+                        double wzi = (*itLeaf)->getWidth(2);
                         if(dx<0.05*wxi) dx = 0.05*wxi;
                         if(dy<0.05*wyi) dy = 0.05*wyi;
-                        double dr2 = dx*dx+dy*dy;
+                        if(dz<0.05*wzi) dz = 0.05*wzi;
+                        double dr2 = dx*dx+dy*dy+dz*dz;
                         double dr = sqrt(dr2);
                         sumw += 1./dr;
                         sumwx += wxi/dr;
                         sumwy += wyi/dr;
+                        sumwz += wzi/dr;
                         //cout<<"  Neighbor leaf dx="<<dx<<",dy="<<dy<<",w="<<1./dr2<<"\n";
                     }
                     double widthx = sumwx/sumw;
                     double widthy = sumwy/sumw;
-                    //cout<<" Width x="<<widthx<<",y="<<widthy<<"\n";
-                    hWidthX->SetBinContent(bx,by,widthx);
-                    hWidthY->SetBinContent(bx,by,widthy);
+                    double widthz = sumwz/sumw;
+                    hWidthX->SetBinContent(bx,by,bz,widthx);
+                    hWidthY->SetBinContent(bx,by,bz,widthy);
+                    hWidthZ->SetBinContent(bx,by,bz,widthz);
+                    hWidthX->SetBinError(bx,by,bz,0.);
+                    hWidthY->SetBinError(bx,by,bz,0.);
+                    hWidthZ->SetBinError(bx,by,bz,0.);
+                }
+            }
+        }
+        widths.push_back(hWidthX);
+        widths.push_back(hWidthY);
+        widths.push_back(hWidthZ);
+    }
+    cout << "[INFO]   "<< setw(3) << 100 << "% [";
+    for (int x=0; x<50; x++) cout << "=";
+    cout << "]" << endl;
+    return widths;
+}
+
+/*****************************************************************/
+vector<TH1*> BinTree::fillWidthsLowStat(const TH1* widthTemplate)
+/*****************************************************************/
+{
+    if(!widthTemplate && !m_gridConstraint)
+    {
+        stringstream error;
+        error << "BinTree::fillWidths(): Trying to fill width, but the binning is unknown. Please give a template histogram or define a gridConstraint";
+        throw runtime_error(error.str());
+    }
+    if(m_ndim>3)
+    {
+        stringstream error;
+        error << "BinTree::fillWidths(): Cannot fill histograms with more than 3 dimensions";
+        throw runtime_error(error.str());
+    }
+    vector<TH1*> widths;
+    if(m_ndim==2)
+    {
+        const TH1* gridRef = (widthTemplate ? widthTemplate : m_gridConstraint);
+        TH1* hWidthX = (TH1*)gridRef->Clone("widthXFromTree");
+        TH1* hWidthY = (TH1*)gridRef->Clone("widthYFromTree");
+        int nbinsx = hWidthX->GetNbinsX();
+        int nbinsy = hWidthX->GetNbinsY();
+        int counter = 0;
+        int total = nbinsx*nbinsy;
+        vector<BinLeaf*> neighborLeaves = getLeaves();
+        for(int bx=1;bx<nbinsx+1;bx++) 
+        {
+            for(int by=1;by<nbinsy+1;by++)
+            {
+                counter++;
+                if(counter % (total/100) == 0)
+                {
+                    double ratio  =  (double)counter/(double)total;
+                    int   c      =  ratio * 50;
+                    cout << "[INFO]   "<< setw(3) << (int)(ratio*100) << "% [";
+                    for (int x=0; x<c; x++) cout << "=";
+                    for (int x=c; x<50; x++) cout << " ";
+                    cout << "]\r" << flush;
+                }
+                double x = hWidthX->GetXaxis()->GetBinCenter(bx);
+                double y = hWidthX->GetYaxis()->GetBinCenter(by);
+                double xBinWidth = hWidthX->GetXaxis()->GetBinWidth(bx);
+                double yBinWidth = hWidthX->GetYaxis()->GetBinWidth(by);
+                vector<double> point;
+                point.push_back(x);
+                point.push_back(y);
+                //cout<<"Computing width for ("<<x<<","<<y<<")\n";
+                BinLeaf* leaf = getLeaf(point);
+                if(leaf->getWidth(0)<=xBinWidth && leaf->getWidth(1)<=yBinWidth) 
+                {
+                    hWidthX->SetBinContent(bx,by,leaf->getWidth(0));
+                    hWidthY->SetBinContent(bx,by,leaf->getWidth(1));
                     hWidthX->SetBinError(bx,by,0.);
                     hWidthY->SetBinError(bx,by,0.);
+                    continue;
                 }
-            }
-            widths.push_back(hWidthX);
-            widths.push_back(hWidthY);
-        }
-        else if(m_ndim==3)
-        {
-            const TH1* gridRef = (widthTemplate ? widthTemplate : m_gridConstraint);
-            TH1* hWidthX = (TH1*)gridRef->Clone("widthXFromTree");
-            TH1* hWidthY = (TH1*)gridRef->Clone("widthYFromTree");
-            TH1* hWidthZ = (TH1*)gridRef->Clone("widthZFromTree");
-            int nbinsx = hWidthX->GetNbinsX();
-            int nbinsy = hWidthX->GetNbinsY();
-            int nbinsz = hWidthX->GetNbinsZ();
-            int counter = 0;
-            int total = nbinsx*nbinsy*nbinsz;
-            for(int bx=1;bx<nbinsx+1;bx++) 
-            {
-                for(int by=1;by<nbinsy+1;by++)
+                vector<BinLeaf*>::iterator itLeaf = neighborLeaves.begin();
+                vector<BinLeaf*>::iterator itELeaf = neighborLeaves.end();
+                double sumw = 0.;
+                double sumwx = 0.;
+                double sumwy = 0.;
+                //cout<<" "<<neighborLeaves.size()<<" neighbor leaves\n";
+                double xRegionSize = getMax(0)-getMin(0);
+                double yRegionSize = getMax(1)-getMin(1);
+                for(;itLeaf!=itELeaf;++itLeaf)
                 {
-                    for(int bz=1;bz<nbinsz+1;bz++)
+                    double xi = (*itLeaf)->getCenter(0);
+                    double yi = (*itLeaf)->getCenter(1);
+                    double dx = fabs(xi-x)/xRegionSize;
+                    double dy = fabs(yi-y)/yRegionSize;
+                    double wxi = (*itLeaf)->getWidth(0);
+                    double wyi = (*itLeaf)->getWidth(1);
+                    if(dx<0.001*wxi) dx = 0.001*wxi;
+                    if(dy<0.001*wyi) dy = 0.001*wyi;
+                    double dr2 = dx*dx+dy*dy;
+                    //double dr = sqrt(dr2);
+                    //double dr = pow(dr2,1./10.);
+                    double dr = dr2;
+                    sumw += 1./dr;
+                    sumwx += wxi/dr;
+                    sumwy += wyi/dr;
+                    //cout<<"  Neighbor leaf dx="<<dx<<",dy="<<dy<<",w="<<1./dr<<"\n";
+                }
+                double widthx = sumwx/sumw;
+                double widthy = sumwy/sumw;
+                //cout<<" Width x="<<widthx<<",y="<<widthy<<"\n";
+                hWidthX->SetBinContent(bx,by,widthx);
+                hWidthY->SetBinContent(bx,by,widthy);
+                hWidthX->SetBinError(bx,by,0.);
+                hWidthY->SetBinError(bx,by,0.);
+            }
+        }
+        widths.push_back(hWidthX);
+        widths.push_back(hWidthY);
+    }
+    else if(m_ndim==3)
+    {
+        const TH1* gridRef = (widthTemplate ? widthTemplate : m_gridConstraint);
+        TH1* hWidthX = (TH1*)gridRef->Clone("widthXFromTree");
+        TH1* hWidthY = (TH1*)gridRef->Clone("widthYFromTree");
+        TH1* hWidthZ = (TH1*)gridRef->Clone("widthZFromTree");
+        int nbinsx = hWidthX->GetNbinsX();
+        int nbinsy = hWidthX->GetNbinsY();
+        int nbinsz = hWidthX->GetNbinsZ();
+        int counter = 0;
+        int total = nbinsx*nbinsy*nbinsz;
+        vector<BinLeaf*> neighborLeaves = getLeaves();
+        for(int bx=1;bx<nbinsx+1;bx++) 
+        {
+            for(int by=1;by<nbinsy+1;by++)
+            {
+                for(int bz=1;bz<nbinsz+1;bz++)
+                {
+                    counter++;
+                    if(counter % (total/100) == 0)
                     {
-                        counter++;
-                        if(counter % (total/100) == 0)
-                        {
-                            double ratio  =  (double)counter/(double)total;
-                            int   c      =  ratio * 50;
-                            cout << "[INFO]   "<< setw(3) << (int)(ratio*100) << "% [";
-                            for (int x=0; x<c; x++) cout << "=";
-                            for (int x=c; x<50; x++) cout << " ";
-                            cout << "]\r" << flush;
-                        }
-                        double x = hWidthX->GetXaxis()->GetBinCenter(bx);
-                        double y = hWidthX->GetYaxis()->GetBinCenter(by);
-                        double z = hWidthX->GetZaxis()->GetBinCenter(bz);
-                        vector<double> point;
-                        point.push_back(x);
-                        point.push_back(y);
-                        point.push_back(z);
-                        //cout<<"Computing width for ("<<x<<","<<y<<")\n";
-                        BinLeaf* leaf = getLeaf(point);
-                        vector<BinLeaf*> neighborLeaves = findNeighborLeaves(leaf);
-                        neighborLeaves.push_back(leaf);
-                        vector<BinLeaf*>::iterator itLeaf = neighborLeaves.begin();
-                        vector<BinLeaf*>::iterator itELeaf = neighborLeaves.end();
-                        double sumw = 0.;
-                        double sumwx = 0.;
-                        double sumwy = 0.;
-                        double sumwz = 0.;
-                        //cout<<" "<<neighborLeaves.size()<<" neighbor leaves\n";
-                        for(;itLeaf!=itELeaf;++itLeaf)
-                        {
-                            double xi = (*itLeaf)->getCenter(0);
-                            double yi = (*itLeaf)->getCenter(1);
-                            double zi = (*itLeaf)->getCenter(2);
-                            double dx = fabs(xi-x);
-                            double dy = fabs(yi-y);
-                            double dz = fabs(zi-z);
-                            double wxi = (*itLeaf)->getWidth(0);
-                            double wyi = (*itLeaf)->getWidth(1);
-                            double wzi = (*itLeaf)->getWidth(2);
-                            if(dx<0.05*wxi) dx = 0.05*wxi;
-                            if(dy<0.05*wyi) dy = 0.05*wyi;
-                            if(dz<0.05*wzi) dz = 0.05*wzi;
-                            double dr2 = dx*dx+dy*dy+dz*dz;
-                            double dr = sqrt(dr2);
-                            sumw += 1./dr;
-                            sumwx += wxi/dr;
-                            sumwy += wyi/dr;
-                            sumwz += wzi/dr;
-                            //cout<<"  Neighbor leaf dx="<<dx<<",dy="<<dy<<",w="<<1./dr2<<"\n";
-                        }
-                        double widthx = sumwx/sumw;
-                        double widthy = sumwy/sumw;
-                        double widthz = sumwz/sumw;
-                        hWidthX->SetBinContent(bx,by,bz,widthx);
-                        hWidthY->SetBinContent(bx,by,bz,widthy);
-                        hWidthZ->SetBinContent(bx,by,bz,widthz);
-                        hWidthX->SetBinError(bx,by,bz,0.);
-                        hWidthY->SetBinError(bx,by,bz,0.);
-                        hWidthZ->SetBinError(bx,by,bz,0.);
+                        double ratio  =  (double)counter/(double)total;
+                        int   c      =  ratio * 50;
+                        cout << "[INFO]   "<< setw(3) << (int)(ratio*100) << "% [";
+                        for (int x=0; x<c; x++) cout << "=";
+                        for (int x=c; x<50; x++) cout << " ";
+                        cout << "]\r" << flush;
                     }
+                    double x = hWidthX->GetXaxis()->GetBinCenter(bx);
+                    double y = hWidthX->GetYaxis()->GetBinCenter(by);
+                    double z = hWidthX->GetZaxis()->GetBinCenter(bz);
+                    double xBinWidth = hWidthX->GetXaxis()->GetBinWidth(bx);
+                    double yBinWidth = hWidthX->GetYaxis()->GetBinWidth(by);
+                    double zBinWidth = hWidthX->GetZaxis()->GetBinWidth(bz);
+                    vector<double> point;
+                    point.push_back(x);
+                    point.push_back(y);
+                    point.push_back(z);
+                    BinLeaf* leaf = getLeaf(point);
+                    if(leaf->getWidth(0)<=xBinWidth && leaf->getWidth(1)<=yBinWidth && leaf->getWidth(2)<=zBinWidth)
+                    {
+                        hWidthX->SetBinContent(bx,by,bz, leaf->getWidth(0));
+                        hWidthY->SetBinContent(bx,by,bz, leaf->getWidth(1));
+                        hWidthZ->SetBinContent(bx,by,bz, leaf->getWidth(2));
+                        hWidthX->SetBinError(bx,by, bz, 0.);
+                        hWidthY->SetBinError(bx,by, bz, 0.);
+                        hWidthZ->SetBinError(bx,by, bz, 0.);
+                        continue;
+                    }
+                    //cout<<"Computing width for ("<<x<<","<<y<<")\n";
+                    vector<BinLeaf*>::iterator itLeaf = neighborLeaves.begin();
+                    vector<BinLeaf*>::iterator itELeaf = neighborLeaves.end();
+                    double sumw = 0.;
+                    double sumwx = 0.;
+                    double sumwy = 0.;
+                    double sumwz = 0.;
+                    //cout<<" "<<neighborLeaves.size()<<" neighbor leaves\n";
+                    for(;itLeaf!=itELeaf;++itLeaf)
+                    {
+                        double xi = (*itLeaf)->getCenter(0);
+                        double yi = (*itLeaf)->getCenter(1);
+                        double zi = (*itLeaf)->getCenter(2);
+                        double dx = fabs(xi-x);
+                        double dy = fabs(yi-y);
+                        double dz = fabs(zi-z);
+                        double wxi = (*itLeaf)->getWidth(0);
+                        double wyi = (*itLeaf)->getWidth(1);
+                        double wzi = (*itLeaf)->getWidth(2);
+                        if(dx<0.001*wxi) dx = 0.001*wxi;
+                        if(dy<0.001*wyi) dy = 0.001*wyi;
+                        if(dz<0.001*wzi) dz = 0.001*wzi;
+                        double dr2 = dx*dx+dy*dy+dz*dz;
+                        double dr = dr2;
+                        sumw += 1./dr;
+                        sumwx += wxi/dr;
+                        sumwy += wyi/dr;
+                        sumwz += wzi/dr;
+                        //cout<<"  Neighbor leaf dx="<<dx<<",dy="<<dy<<",w="<<1./dr2<<"\n";
+                    }
+                    double widthx = sumwx/sumw;
+                    double widthy = sumwy/sumw;
+                    double widthz = sumwz/sumw;
+                    hWidthX->SetBinContent(bx,by,bz,widthx);
+                    hWidthY->SetBinContent(bx,by,bz,widthy);
+                    hWidthZ->SetBinContent(bx,by,bz,widthz);
+                    hWidthX->SetBinError(bx,by,bz,0.);
+                    hWidthY->SetBinError(bx,by,bz,0.);
+                    hWidthZ->SetBinError(bx,by,bz,0.);
                 }
             }
-            widths.push_back(hWidthX);
-            widths.push_back(hWidthY);
-            widths.push_back(hWidthZ);
         }
-        cout << "[INFO]   "<< setw(3) << 100 << "% [";
-        for (int x=0; x<50; x++) cout << "=";
-        cout << "]" << endl;
-        return widths;
+        widths.push_back(hWidthX);
+        widths.push_back(hWidthY);
+        widths.push_back(hWidthZ);
+    }
+    cout << "[INFO]   "<< setw(3) << 100 << "% [";
+    for (int x=0; x<50; x++) cout << "=";
+    cout << "]" << endl;
+    return widths;
+}
+
+/*****************************************************************/
+vector<TH1*> BinTree::fillWidths(const TH1* widthTemplate)
+/*****************************************************************/
+{
+    if(getNLeaves()<500)
+    {
+        return fillWidthsLowStat(widthTemplate); // use all bins to evaluate the width (gives more smooth transitions)
+    }
+    else
+    {
+        return fillWidthsHighStat(widthTemplate); // Use only neighbors bins to evaluate the width
+    }
 }
 
 

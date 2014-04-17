@@ -279,8 +279,8 @@ void TemplateManager::save()
         tmp->getTemplate()->Write();
 
         // TMP: fill kernel widths
-        tmp->getWidth(0)->Write();
-        tmp->getWidth(1)->Write();
+        //tmp->getWidth(0)->Write();
+        //tmp->getWidth(1)->Write();
         //tmp->getWidth(2)->Write();
     }
     // write control plots

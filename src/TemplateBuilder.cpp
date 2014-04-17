@@ -249,10 +249,10 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
                             throw runtime_error(error.str());
                         }
                         tmp->makeProjectionControlPlot("afterSmooth");
-                        tmp->makeResidualsControlPlot("afterSmooth");
-                        tmp->makeResidualsControlPlot("afterSmooth", 2);
-                        tmp->makeResidualsControlPlot("afterSmooth", 5);
-                        tmp->makeResidualsControlPlot("afterSmooth", 10);
+                        //tmp->makeResidualsControlPlot("afterSmooth");
+                        //tmp->makeResidualsControlPlot("afterSmooth", 2);
+                        //tmp->makeResidualsControlPlot("afterSmooth", 5);
+                        //tmp->makeResidualsControlPlot("afterSmooth", 10);
                         break;
                     }
                 case PostProcessing::Type::MIRROR:
@@ -345,10 +345,10 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
                             }
                         }
                         tmp->makeProjectionControlPlot("afterMirror");
-                        tmp->makeResidualsControlPlot("afterMirror");
-                        tmp->makeResidualsControlPlot("afterMirror", 2);
-                        tmp->makeResidualsControlPlot("afterMirror", 5);
-                        tmp->makeResidualsControlPlot("afterMirror", 10);
+                        //tmp->makeResidualsControlPlot("afterMirror");
+                        //tmp->makeResidualsControlPlot("afterMirror", 2);
+                        //tmp->makeResidualsControlPlot("afterMirror", 5);
+                        //tmp->makeResidualsControlPlot("afterMirror", 10);
                         break;
                     }
                 case PostProcessing::Type::FLOOR:
@@ -389,10 +389,10 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
                             }
                         }
                         tmp->makeProjectionControlPlot("afterFloor");
-                        tmp->makeResidualsControlPlot("afterFloor");
-                        tmp->makeResidualsControlPlot("afterFloor", 2);
-                        tmp->makeResidualsControlPlot("afterFloor", 5);
-                        tmp->makeResidualsControlPlot("afterFloor", 10);
+                        //tmp->makeResidualsControlPlot("afterFloor");
+                        //tmp->makeResidualsControlPlot("afterFloor", 2);
+                        //tmp->makeResidualsControlPlot("afterFloor", 5);
+                        //tmp->makeResidualsControlPlot("afterFloor", 10);
                         break;
                     }
                 case PostProcessing::Type::RESCALE:
@@ -406,10 +406,10 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
                         cout<<"[INFO] Reweighting template '"<<tmp->getName()<<"'\n";
                         applyReweighting(tmp,*it);
                         tmp->makeProjectionControlPlot("afterReweight");
-                        tmp->makeResidualsControlPlot("afterReweight");
-                        tmp->makeResidualsControlPlot("afterReweight", 2);
-                        tmp->makeResidualsControlPlot("afterReweight", 5);
-                        tmp->makeResidualsControlPlot("afterReweight", 10);
+                        //tmp->makeResidualsControlPlot("afterReweight");
+                        //tmp->makeResidualsControlPlot("afterReweight", 2);
+                        //tmp->makeResidualsControlPlot("afterReweight", 5);
+                        //tmp->makeResidualsControlPlot("afterReweight", 10);
                         break;
                     }
                 default:
@@ -457,10 +457,10 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
             }
         }
         tmp->makeProjectionControlPlot("afterNormalization");
-        tmp->makeResidualsControlPlot("afterNormalization");
-        tmp->makeResidualsControlPlot("afterNormalization", 2);
-        tmp->makeResidualsControlPlot("afterNormalization", 5);
-        tmp->makeResidualsControlPlot("afterNormalization", 10);
+        //tmp->makeResidualsControlPlot("afterNormalization");
+        //tmp->makeResidualsControlPlot("afterNormalization", 2);
+        //tmp->makeResidualsControlPlot("afterNormalization", 5);
+        //tmp->makeResidualsControlPlot("afterNormalization", 10);
     }
 
 }

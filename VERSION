@@ -1,4 +1,9 @@
-Latest version: 130414_auto-reweight
+Latest version: 230414_fixes
+
+* 230414_fixes
+  - Fix initialization and cleaning of raw templates causing crashes
+  - Fix compilation warnings
+  - Fix computation of raw 1D distributions for template sums
 
 * 130414_auto-reweight
   - Finalize automatized reweighting procedure

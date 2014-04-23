@@ -498,9 +498,18 @@ void TemplateBuilder::buildTemplatesFromTemplates()
                 tmp->setTemplate(inTmp->getTemplate());
                 tmp->setRawTemplate(inTmp->getRawTemplate());
                 tmp->getTemplate()->Scale(factor);
+                tmp->getRawTemplate()->Scale(factor);
                 tmp->setWidths(inTmp->getWidths());
                 tmp->setRaw1DTemplates(inTmp->getRaw1DTemplates());
                 tmp->setRaw2DTemplates(inTmp->getRaw2DTemplates());
+                for(unsigned int axis=0;axis<inTmp->numberOfDimensions();axis++)
+                {
+                    tmp->getRaw1DTemplate(axis)->Scale(factor);
+                }
+                for(unsigned int i=0;i<tmp->getRaw2DTemplates().size();i++)
+                {
+                    tmp->getRaw2DTemplate(i)->Scale(factor);
+                }
                 vector<string> vars;
                 for(unsigned int v=0;v<inTmp->numberOfDimensions();v++)
                 {
@@ -535,9 +544,14 @@ void TemplateBuilder::buildTemplatesFromTemplates()
                 //    throw runtime_error(error.str());
                 //}
                 tmp->getTemplate()->Add(inTmp->getTemplate(), factor);
+                tmp->getRawTemplate()->Add(inTmp->getRawTemplate(), factor);
                 for(unsigned int axis=0;axis<inTmp->numberOfDimensions();axis++)
                 {
                     tmp->getRaw1DTemplate(axis)->Add(inTmp->getRaw1DTemplate(axis), factor);
+                }
+                for(unsigned int i=0;i<tmp->getRaw2DTemplates().size();i++)
+                {
+                    tmp->getRaw2DTemplate(i)->Scale(factor);
                 }
             }
         }

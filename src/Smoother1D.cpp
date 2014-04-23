@@ -151,9 +151,9 @@ void Smoother1D::rebinHisto()
         double value2 = histoRebin->GetBinContent(b+1);
         double error2 = histoRebin->GetBinError(b+1);
         double relError2 = (value2>0 ? error1/value2 : 0);
-        double errorRatio = 0;
-        if(value1>value2) errorRatio = (error2>0 ? error1/error2: 0.);
-        else errorRatio = (error1>0 ? error2/error1: 0.);
+        //double errorRatio = 0;
+        //if(value1>value2) errorRatio = (error2>0 ? error1/error2: 0.);
+        //else errorRatio = (error1>0 ? error2/error1: 0.);
         if(value1>0 && value2>0 && error1>0 && error2>0 && (relError1>0.1 || relError2>0.1))
         {
             double ratio = error1/error2*sqrt(value2/value1);
@@ -320,7 +320,7 @@ void Smoother1D::mergeZero()
     {
         int binDown = 0;
         int binUp = 0;
-        double significanceMin = 9.e10;
+        //double significanceMin = 9.e10;
         // First choose two bins to be merged
         for(int b=1; b<=nBins-1; b++)
         {
@@ -338,10 +338,10 @@ void Smoother1D::mergeZero()
         {
             double xDown     = histoXpos->GetXaxis()->GetBinCenter(binDown);
             double xUp       = histoXpos->GetXaxis()->GetBinCenter(binUp);
-            double valueUp   = histoRebin->GetBinContent(binUp); 
-            double errorUp   = histoRebin->GetBinError(binUp);
-            double valueDown = histoRebin->GetBinContent(binDown); 
-            double errorDown = histoRebin->GetBinError(binDown);
+            //double valueUp   = histoRebin->GetBinContent(binUp); 
+            //double errorUp   = histoRebin->GetBinError(binUp);
+            //double valueDown = histoRebin->GetBinContent(binDown); 
+            //double errorDown = histoRebin->GetBinError(binDown);
 
 
             double meanXpos  = (xUp+xDown)/2.;
@@ -596,7 +596,7 @@ void Smoother1D::computeSmoothHisto()
         {
             double xi = m_rawHisto->GetXaxis()->GetBinCenter(i);
             double yi = m_rawHisto->GetBinContent(i);
-            double ei = m_rawHisto->GetBinError(i);
+            //double ei = m_rawHisto->GetBinError(i);
             double dx = (x-xi)/width;
             double wi = TMath::Gaus(dx);
             //if (ei>0.) wi *=1./(ei*ei);// weight with error squared

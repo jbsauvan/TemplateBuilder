@@ -46,6 +46,7 @@ PostProcessing::~PostProcessing()
 ///////////////////////////////////////////////////////////////////////////////////////////:
 /*****************************************************************/
 Template::Template():m_template(NULL),
+    m_rawTemplate(NULL),
     m_originalSumOfWeights(0.),
     m_conserveSumOfWeights(false)
 /*****************************************************************/
@@ -58,10 +59,18 @@ Template::Template(const Template& tmp)
 {
     stringstream hname;
     hname << tmp.getName() << "_";
+    m_name = hname.str();
     m_template = NULL;
+    m_rawTemplate = NULL;
     if(tmp.getTemplate())
     {
-        m_template = dynamic_cast<TH2F*>(tmp.getTemplate()->Clone(hname.str().c_str()));
+        m_template = dynamic_cast<TH1*>(tmp.getTemplate()->Clone(hname.str().c_str()));
+    }
+    if(tmp.getRawTemplate())
+    {
+        stringstream nameRaw;
+        nameRaw << m_name << "_raw_";
+        m_rawTemplate = dynamic_cast<TH1*>(tmp.getRawTemplate()->Clone(nameRaw.str().c_str()));
     }
     setWidths(tmp.getWidths());
     setRaw1DTemplates(tmp.getRaw1DTemplates());
@@ -80,6 +89,11 @@ Template::~Template()
         delete m_template;
         m_template = NULL;
     }
+    if(m_rawTemplate)
+    {
+        delete m_rawTemplate;
+        m_rawTemplate = NULL;
+    }
     for(unsigned int axis=0;axis<m_widths.size();axis++)
     {
         if(m_widths[axis])
@@ -96,6 +110,14 @@ Template::~Template()
         }
     }
     m_raw1DTemplates.clear();
+    for(unsigned int i=0;i<m_raw2DTemplates.size();i++)
+    {
+        if(m_raw2DTemplates[i])
+        {
+            delete m_raw2DTemplates[i];
+        }
+    }
+    m_raw2DTemplates.clear();
     for(unsigned int n=0;n<m_controlPlots.size();n++)
     {
         if(m_controlPlots[n])
@@ -243,9 +265,15 @@ void Template::createTemplate(const vector<unsigned int>& nbins, const vector< p
 {
     // Clear histograms
     if(m_template)
+    {
         m_template->Delete();
+        m_template = NULL;
+    }
     if(m_rawTemplate)
+    {
         delete m_rawTemplate;
+        m_rawTemplate = NULL;
+    }
     for(unsigned int axis=0;axis<m_widths.size();axis++)
     {
         if(m_widths[axis])

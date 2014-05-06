@@ -265,6 +265,7 @@ void TemplateParameters::readSmoothingParameters(const Json::Value& smooth, Post
 /*****************************************************************/
 {
     unsigned int entriesPerBin = smooth.get("entriesperbin", 200).asUInt();
+    double rescaleWidth = smooth.get("rescalewidth", 1.).asDouble();
     string kernel = smooth.get("kernel", "adaptive").asString();
     if(kernel!="adaptive" && kernel!="k5b")
     {
@@ -274,6 +275,7 @@ void TemplateParameters::readSmoothingParameters(const Json::Value& smooth, Post
     }
     postproc.addParameter("kernel", kernel);
     postproc.addParameter("entriesperbin", entriesPerBin);
+    postproc.addParameter("rescalewidth", rescaleWidth);
 }
 
 /*****************************************************************/

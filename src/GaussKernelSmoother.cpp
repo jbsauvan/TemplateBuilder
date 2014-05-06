@@ -32,17 +32,19 @@ using namespace std;
 
 
 /*****************************************************************/
-GaussKernelSmoother::GaussKernelSmoother()
+GaussKernelSmoother::GaussKernelSmoother():
+    m_ndim(2),
+    m_widthScalingFactor(1.)
 /*****************************************************************/
 {
-    m_ndim = 2;
 }
 
 /*****************************************************************/
-GaussKernelSmoother::GaussKernelSmoother(unsigned int ndim)
+GaussKernelSmoother::GaussKernelSmoother(unsigned int ndim):
+    m_ndim(ndim),
+    m_widthScalingFactor(1.)
 /*****************************************************************/
 {
-    m_ndim = ndim;
 }
 
 /*****************************************************************/
@@ -196,6 +198,7 @@ double GaussKernelSmoother::weight(const std::vector<double>& x0, const std::vec
             int binz = m_widths[axis]->GetZaxis()->FindBin(x0[2]);
             width = m_widths[axis]->GetBinContent(binx, biny, binz)/2.;
         }
+        width *= m_widthScalingFactor;
         //cout<<"  Width="<<width<<"\n";
         double dx = (xi[axis]-x0[axis])/width;
         dr2 += dx*dx;
@@ -225,6 +228,7 @@ double GaussKernelSmoother::weight(const std::vector<double>& x0, double dx, int
         int binz = m_widths[axis]->GetZaxis()->FindBin(x0[2]);
         width = m_widths[axis]->GetBinContent(binx, biny, binz)/2.;
     }
+    width *= m_widthScalingFactor;
     double dxw = dx/width;
     double wi = TMath::Gaus( dxw );
     return wi;
@@ -256,9 +260,11 @@ pair<double,double> GaussKernelSmoother::smoothed2DValueError(const TH1* histo, 
     int binx = m_widths[0]->GetXaxis()->FindBin(x0[0]);
     int biny = m_widths[0]->GetYaxis()->FindBin(x0[1]);
     widthx = m_widths[0]->GetBinContent(binx, biny);
+    widthx *= m_widthScalingFactor;
     binx = m_widths[1]->GetXaxis()->FindBin(x0[0]);
     biny = m_widths[1]->GetYaxis()->FindBin(x0[1]);
     widthy = m_widths[1]->GetBinContent(binx, biny);
+    widthy *= m_widthScalingFactor;
     double maxWidth = max(widthx, widthy);
     double widthRatiox = widthx/maxWidth;
     double widthRatioy = widthy/maxWidth;
@@ -378,14 +384,17 @@ pair<double,double> GaussKernelSmoother::smoothed3DValueError(const TH1* histo, 
     int biny = m_widths[0]->GetYaxis()->FindBin(x0[1]);
     int binz = m_widths[0]->GetZaxis()->FindBin(x0[2]);
     widthx = m_widths[0]->GetBinContent(binx, biny, binz);
+    widthx *= m_widthScalingFactor;
     binx = m_widths[1]->GetXaxis()->FindBin(x0[0]);
     biny = m_widths[1]->GetYaxis()->FindBin(x0[1]);
     binz = m_widths[1]->GetZaxis()->FindBin(x0[2]);
     widthy = m_widths[1]->GetBinContent(binx, biny, binz);
+    widthy *= m_widthScalingFactor;
     binx = m_widths[2]->GetXaxis()->FindBin(x0[0]);
     biny = m_widths[2]->GetYaxis()->FindBin(x0[1]);
     binz = m_widths[2]->GetZaxis()->FindBin(x0[2]);
     widthz = m_widths[2]->GetBinContent(binx, biny, binz);
+    widthz *= m_widthScalingFactor;
     double maxWidth = max(max(widthx, widthy),widthz);
     double widthRatiox = widthx/maxWidth;
     double widthRatioy = widthy/maxWidth;

@@ -239,6 +239,8 @@ void TemplateBuilder::postProcessing(Template::Origin origin)
                             }
                             GaussKernelSmoother smoother(tmp->numberOfDimensions());
                             smoother.setWidths(tmp->getWidths());
+                            double widthScalingFactor= it->getParameter<double>("rescalewidth");
+                            smoother.setWidthScalingFactor(widthScalingFactor);
                             TH1* histoSmooth = smoother.smooth(tmp->getTemplate());
                             tmp->setTemplate(histoSmooth);
                         }

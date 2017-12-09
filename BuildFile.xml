@@ -1,0 +1,11 @@
+<flags ADD_SUBDIR="1" />
+
+<flags CPPFLAGS="-I$(CMSSW_BASE)/src/TemplateBuilder/TemplateBuilder/include/ -I$(CMSSW_BASE)/src/TemplateBuilder/TemplateBuilder/include/external/" />
+
+<use name="root"/>
+<use name="rootmath"/>
+<use name="rootgraphics"/>
+
+<export>
+   <lib name="1"/>
+</export>

@@ -11,7 +11,7 @@ RUCFLAGS := $(shell root-config --cflags) -I./include/ -I./include/external/
 LIBS :=  $(shell root-config --libs) -lTreePlayer
 GLIBS := $(shell root-config --glibs)
 
-VPATH = ./src/:./src/external/
+VPATH = ./src/:./src/external/:./bin/
 
 SRCPP = main.cpp\
 	json_reader.cpp\
